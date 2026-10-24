@@ -138,7 +138,7 @@ className="w-full rounded-md object-cover"
 className="mt-4 border bg-[var(--surface)] p-4"
 style={{ borderColor: "var(--text)"}}
 >
-<h2 className="text-base font-bold"></h2>
+<h2 className="text-base font-bold">朝から寝る前まで、今日の美容ルーチン</h2>
 <p
 className="mt-2 text-[13px] leading-relaxed"
 style={{ color: "var(--muted)"}}
@@ -162,7 +162,7 @@ className="flex items-baseline justify-between border-b-2 pb-2"
 style={{ borderColor: "var(--text)"}}
 >
 <h2 className="text-lg font-bold">
-
+【{situation.name}のルーチン】
 </h2>
 <span className="text-[11px]" style={{ color: "var(--muted)"}}>
 {items.length}つのタスク
