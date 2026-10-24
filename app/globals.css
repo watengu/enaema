@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
+/* Enaema テーマトークン（DESIGN.md / elegant テーマが唯一の正解） */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f2e0c9;
+  --surface: #ffffff;
+  --text: #2b2320;
+  --muted: #8a7a6e;
+  --line: #e8ddd0;
+  --accent: #a6272b;
+  --accent-gold: #c9a227;
+
+  --background: var(--bg);
+  --foreground: var(--text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body), "Hiragino Kaku Gothic ProN", sans-serif;
 }
