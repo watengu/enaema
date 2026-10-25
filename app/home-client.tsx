@@ -1,6 +1,8 @@
 "use client";
 
-// Enaema ホーム（表紙＋スライド）クライアント部品 v7
+// Enaema タスク画面クライアント部品 v11
+// v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
+// 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
 // - 先頭スライド = 表紙（キャラのメイン画像）。続いて今の時間帯に選んだタスクのシーンが流れる
 // - 開始位置は時刻から決まる（時間帯の経過割合 × シーン数）。タップは「次のシーンへ」の軽い操作だけ
@@ -311,7 +313,7 @@ const editingSituation = editing
 
 return (
 <>
-{/* 表紙＋スライド: メインビジュアルが時間とともに流れる */}
+{/* 舞台: シーンが主役。字幕とストーリーバーだけを重ね、操作は下の細い帯とパネルに沈める */}
 <section className="flex h-full flex-col pt-3">
 {current && (
 <button
@@ -327,105 +329,62 @@ src={current.imageUrl}
 alt={current.task? current.task.task_name: characterName}
 className="absolute inset-0 h-full w-full rounded-md object-cover"
 />
+{/* ストーリーバー: 進捗は番号リストではなく線で示す */}
+<span className="absolute inset-x-3 top-2 flex gap-1">
+{slides.map((s, i) => (
 <span
-className="absolute right-2 top-2 bg-[var(--surface)] px-2 py-0.5 text-[10px]"
-style={{ color: "var(--muted)"}}
->
-{Math.min(slide + 1, slides.length)} / {slides.length}
+key={s.key}
+className="h-[3px] flex-1 rounded-full"
+style={{
+background:
+i <= Math.min(slide, slides.length - 1)
+? "rgba(255,255,255,0.95)"
+: "rgba(255,255,255,0.35)",
+boxShadow: "0 1px 2px rgba(0,0,0,0.35)",
+}}
+/>
+))}
 </span>
-</button>
-)}
-<div
-className="relative mx-3 -mt-8 shrink-0 border bg-[var(--surface)] p-3"
-style={{ borderColor: "var(--text)"}}
->
+{/* 字幕: シーンの言葉だけを下部に重ねる（セリフはDBの dialogue、入れば自動で出る） */}
+<span className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/25 to-transparent px-3 pb-3 pt-10 text-left">
 {currentSituation && (
-<h2 className="text-lg font-bold">
-
-</h2>
+<span className="block text-[10px] tracking-widest text-white/75">
+{currentSituation.name}のルーチン
+</span>
 )}
-{current?.task? (
-<p className="mt-1 text-[15px] font-medium">
-いま：{current.task.task_name}
+{current.task? (
+<>
+<span className="mt-0.5 block text-base font-bold text-white">
+{current.task.task_name}
+</span>
 {current.task.dialogue && (
-<span
-className="mt-0.5 block text-xs font-normal leading-relaxed"
-style={{ color: "var(--muted)"}}
->
+<span className="mt-0.5 block text-xs leading-relaxed text-white/85">
 {current.task.dialogue}
 </span>
 )}
-</p>
+</>
 ): (
-<p
-className="mt-1 text-[13px] leading-relaxed"
+<span className="mt-0.5 block text-[15px] font-medium leading-relaxed text-white">
+朝から寝る前まで、今日の美容ルーチン。
+</span>
+)}
+</span>
+</button>
+)}
+{/* 操作の帯: 静かなリンクとステータスだけ（本体の操作はパネル／ポップアップ） */}
+<div
+className="flex shrink-0 items-baseline justify-between gap-2 px-1 pb-1 pt-2 text-[11px]"
 style={{ color: "var(--muted)"}}
 >
-朝から寝る前まで、今日の美容ルーチン。
-</p>
-)}
-<ul className="mt-3 space-y-2">
-{deck.map((task) => {
-const isPlaying = task.task_id === playingTaskId;
-return (
-<li key={task.task_id} className="flex items-baseline gap-2">
-<span
-className="shrink-0 text-sm"
-style={{
-color: "var(--accent-gold)",
-fontFamily: "var(--font-display)",
-}}
->
-{String(task.order_index).padStart(2, "0")}
+<span className="min-w-0 truncate">
+{baseStatus
+? `骨格${baseStatus}${extraStatus? ` ・ ${extraStatus}`: ""}`
+: "ステータスを入れると、あなたの表紙になります"}
 </span>
-<span
-className="text-[15px] leading-snug"
-style={
-isPlaying
-? { fontWeight: 700, color: "var(--accent)"}
-: { fontWeight: 500}
-}
->
-{task.task_name}
-</span>
-{isPlaying && (
-<span className="text-[10px]" style={{ color: "var(--muted)"}}>
-― いま流れています
-</span>
-)}
-</li>
-);
-})}
-</ul>
-{/* ステータス（表紙に刷られる属性） */}
-<div
-className="mt-4 flex items-baseline justify-between gap-2 border-t pt-3 text-[11px]"
-style={{ borderColor: "var(--line)", color: "var(--muted)"}}
->
-<span>{baseStatus? `骨格${baseStatus}`: "ステータスを入れると、あなたの表紙になります"}</span>
-<span className="flex items-baseline gap-2">
-{extraStatus && <span>{extraStatus}</span>}
-<button type="button" onClick={() => setEditingProfile(true)} className="underline">
-ステータスを入力
+<span className="flex shrink-0 gap-3">
+<button type="button" onClick={() => setPanelOpen(true)} className="underline">
+セット一覧
 </button>
-</span>
-</div>
-{/* 3ボタン＋編集導線 */}
-<div
-className="mt-4 flex items-center justify-between border-t pt-3 text-[11px]"
-style={{ borderColor: "var(--line)", color: "var(--muted)"}}
->
-<div className="flex gap-3">
-<button type="button" onClick={startNewSet} className="underline">
-新規セット
-</button>
-<button type="button" onClick={playFromTop} className="underline">
-前回の続き
-</button>
-<button type="button" onClick={playFromTop} className="underline">
-やり直し
-</button>
-</div>
 {currentSituation && (
 <button
 type="button"
@@ -435,12 +394,10 @@ className="underline"
 タスクを編集
 </button>
 )}
-</div>
-<div className="mt-3 text-center">
-<button type="button" onClick={() => setPanelOpen(true)} className="underline">
-セット一覧を見る
+<button type="button" onClick={() => setEditingProfile(true)} className="underline">
+ステータスを入力
 </button>
-</div>
+</span>
 </div>
 </section>
 
@@ -459,6 +416,34 @@ className="text-xs underline"
 style={{ color: "var(--muted)" }}
 >
 閉じる
+</button>
+</div>
+<div
+className="mt-4 flex gap-4 border-b pb-4 text-[11px]"
+style={{ borderColor: "var(--line)", color: "var(--muted)"}}
+>
+<button type="button" onClick={startNewSet} className="underline">
+新規セット
+</button>
+<button
+type="button"
+onClick={() => {
+setPanelOpen(false);
+playFromTop();
+}}
+className="underline"
+>
+前回の続き
+</button>
+<button
+type="button"
+onClick={() => {
+setPanelOpen(false);
+playFromTop();
+}}
+className="underline"
+>
+やり直し
 </button>
 </div>
 {visibleSituations.map((situation) => {
@@ -518,6 +503,11 @@ loading="lazy"
 />
 <div className="min-w-0 pt-1">
 <p className="text-[15px] font-medium">{task.task_name}</p>
+{task.task_id === playingTaskId && (
+<p className="mt-0.5 text-[10px]" style={{ color: "var(--accent)"}}>
+いま流れています
+</p>
+)}
 {task.dialogue && (
 <p
 className="mt-1 text-xs leading-relaxed"
