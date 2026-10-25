@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema タスク画面クライアント部品 v11
+// Enaema タスク画面クライアント部品 v11.1（バーは画像の外の帯へ／ステータス帯は2段／パネル見出し復旧）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -314,7 +314,22 @@ const editingSituation = editing
 return (
 <>
 {/* 舞台: シーンが主役。字幕とストーリーバーだけを重ね、操作は下の細い帯とパネルに沈める */}
-<section className="flex h-full flex-col pt-3">
+<section className="flex h-full flex-col pt-2">
+{/* ストーリーバー: 画像の外（上の帯）に置き、キャラに線を重ねない */}
+<div className="flex shrink-0 gap-1 px-1 pb-2">
+{slides.map((s, i) => (
+<span
+key={s.key}
+className="h-[3px] flex-1 rounded-full"
+style={{
+background:
+i <= Math.min(slide, slides.length - 1)
+? "var(--accent)"
+: "rgba(43,35,32,0.18)",
+}}
+/>
+))}
+</div>
 {current && (
 <button
 type="button"
@@ -329,22 +344,6 @@ src={current.imageUrl}
 alt={current.task? current.task.task_name: characterName}
 className="absolute inset-0 h-full w-full rounded-md object-cover"
 />
-{/* ストーリーバー: 進捗は番号リストではなく線で示す */}
-<span className="absolute inset-x-3 top-2 flex gap-1">
-{slides.map((s, i) => (
-<span
-key={s.key}
-className="h-[3px] flex-1 rounded-full"
-style={{
-background:
-i <= Math.min(slide, slides.length - 1)
-? "rgba(255,255,255,0.95)"
-: "rgba(255,255,255,0.35)",
-boxShadow: "0 1px 2px rgba(0,0,0,0.35)",
-}}
-/>
-))}
-</span>
 {/* 字幕: シーンの言葉だけを下部に重ねる（セリフはDBの dialogue、入れば自動で出る） */}
 <span className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/25 to-transparent px-3 pb-3 pt-10 text-left">
 {currentSituation && (
@@ -373,15 +372,15 @@ boxShadow: "0 1px 2px rgba(0,0,0,0.35)",
 )}
 {/* 操作の帯: 静かなリンクとステータスだけ（本体の操作はパネル／ポップアップ） */}
 <div
-className="flex shrink-0 items-baseline justify-between gap-2 px-1 pb-1 pt-2 text-[11px]"
+className="shrink-0 px-1 pb-1 pt-2 text-[11px]"
 style={{ color: "var(--muted)"}}
 >
-<span className="min-w-0 truncate">
+<p>
 {baseStatus
 ? `骨格${baseStatus}${extraStatus? ` ・ ${extraStatus}`: ""}`
 : "ステータスを入れると、あなたの表紙になります"}
-</span>
-<span className="flex shrink-0 gap-3">
+</p>
+<div className="mt-1 flex justify-end gap-3">
 <button type="button" onClick={() => setPanelOpen(true)} className="underline">
 セット一覧
 </button>
@@ -397,7 +396,7 @@ className="underline"
 <button type="button" onClick={() => setEditingProfile(true)} className="underline">
 ステータスを入力
 </button>
-</span>
+</div>
 </div>
 </section>
 
@@ -459,7 +458,7 @@ className="mt-10 scroll-mt-4"
 className="flex items-baseline justify-between border-b-2 pb-2"
 style={{ borderColor: "var(--text)"}}
 >
-<h2 className="text-lg font-bold"></h2>
+<h2 className="text-lg font-bold">{situation.name}</h2>
 <span className="text-[11px]" style={{ color: "var(--muted)"}}>
 {isCurrent && "いまの時間帯・"}
 {items.length}つのタスク
@@ -536,7 +535,7 @@ style={{ borderColor: "var(--text)"}}
 >
 <div className="flex items-baseline justify-between">
 <h3 className="text-base font-bold">
-
+{editingSituation.name}のセット
 </h3>
 <button
 type="button"
