@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v14.5（天気と題字の箱を外し、絵に直接印刷する。薄いフェードで可読性だけ担保）
+// Enaema ホームクライアント部品 v14.6（タスク名とキャッチを明朝に：display フォントの日本語側を Noto Serif JP で担う）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -576,20 +576,24 @@ setView("stage");
 setSlide(i);
 setCycle((c) => c + 1);
 }}
-className="block text-left text-[26px] font-bold leading-tight text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.45)]"
+className="block text-left text-[27px] font-bold leading-tight text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.45)]"
+style={{ fontFamily: "var(--font-display-jp)" }}
 >
 {t.task_name}
 </button>
 ))}
 </span>
 ): (
-<span className="block text-[26px] font-bold leading-tight">
+<span
+className="block text-[27px] font-bold leading-tight"
+style={{ fontFamily: "var(--font-display-jp)" }}
+>
 今日のルーチン
 </span>
 )}
 <span
 className="mt-3 block border-b-2 pb-1 text-[15px] font-medium"
-style={{ borderColor: "#EBCB8B"}}
+style={{ borderColor: "#EBCB8B", fontFamily: "var(--font-display-jp)" }}
 >
 {currentSituation
 ? `${currentSituation.name}のルーチン、今日も整える。`
@@ -667,7 +671,10 @@ i <= Math.min(slide, slides.length - 1)
 )}
 {current.task && (
 <>
-<span className="mt-0.5 block text-base font-bold text-white">
+<span
+className="mt-0.5 block text-[17px] font-bold text-white"
+style={{ fontFamily: "var(--font-display-jp)" }}
+>
 {current.task.task_name}
 </span>
 {current.task.dialogue && (
