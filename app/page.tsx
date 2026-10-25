@@ -1,4 +1,4 @@
-// Enaema ホーム画面 v8（2026-10-24）— 表紙＋タスクセット＋ステータス＋Bot テキストロール
+// Enaema ホーム画面 v13（2026-10-25）— 表紙＋タスクセット＋ステータス＋Bot テキストロール
 // 根拠: reconciliation-2026-10-24.md（ホーム＝雑誌の表紙／最小ローンチ範囲／Bot ロールは #7 から前倒し）
 // 構成: マストヘッド（題字＋日付＋天気ボックス）はサーバ側、表紙とタスク表示は HomeClient、
 //       ホーム下部の細い帯に Ticker（天気の実データ＋ DB の ticker_items を流す）
@@ -260,6 +260,18 @@ characterName={character?.name ?? ""}
 imageBase={`${SUPABASE_URL}/storage/v1/object/public/enaema-images/`}
 tier={CURRENT_TIER}
 currentKey={currentKey}
+coverMeta={{
+todayLabel: todayLabelJST(),
+weather: weather
+? {
+label: weather.label,
+max: weather.max,
+min: weather.min,
+now: weather.now,
+condition: weather.condition,
+}
+: null,
+}}
 />
 </div>
 )}
