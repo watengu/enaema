@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v14.2（家具の格上げ：文字リンクを廃し、ピル＋アイコンに統一）
+// Enaema ホームクライアント部品 v14.4（表紙の情報の質を上げる：天気ボックス刷新・ステータスにアイコン・手書き風アクセント）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -54,6 +54,8 @@ max: number;
 min: number;
 now: number | null;
 condition: string;
+conditionShort: string;
+icon: string;
 } | null;
 };
 };
@@ -176,12 +178,95 @@ return (
 <button
 type="button"
 onClick={props.onClick}
-className="pointer-events-auto flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-3 text-[11px] font-medium shadow-sm transition active:scale-95"
+className="pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-full py-1.5 pl-2.5 pr-3 text-[11px] font-medium shadow-sm transition active:scale-95"
 style={{ background: "rgba(255,255,255,0.92)", color: "var(--text)" }}
 >
 <PillIcon name={props.icon} />
 {props.label}
 </button>
+);
+}
+
+
+// 天気アイコン（表紙ボックス用）
+function WeatherIcon({ name }: { name: string }) {
+const common = {
+width: 15,
+height: 15,
+viewBox: "0 0 24 24",
+fill: "none",
+stroke: "currentColor",
+strokeWidth: 1.8,
+strokeLinecap: "round" as const,
+strokeLinejoin: "round" as const,
+"aria-hidden": true,
+};
+if (name === "sun")
+return (
+<svg {...common}>
+<circle cx="12" cy="12" r="4" />
+<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+</svg>
+);
+if (name === "cloud")
+return (
+<svg {...common}>
+<path d="M17.5 18a4.5 4.5 0 0 0 .4-8.98 6 6 0 0 0-11.7 1.62A4 4 0 0 0 7 18h10.5Z" />
+</svg>
+);
+if (name === "snow")
+return (
+<svg {...common}>
+<path d="M17.5 15a4.5 4.5 0 0 0 .4-8.98 6 6 0 0 0-11.7 1.62A4 4 0 0 0 7 15h10.5Z" />
+<path d="M8 19h.01M12.5 19h.01M17 19h.01M10.2 22h.01M15 22h.01" />
+</svg>
+);
+if (name === "storm")
+return (
+<svg {...common}>
+<path d="M17.5 15a4.5 4.5 0 0 0 .4-8.98 6 6 0 0 0-11.7 1.62A4 4 0 0 0 7 15h10.5Z" />
+<path d="M13 16l-2.5 4h3L11 23" />
+</svg>
+);
+return (
+<svg {...common}>
+<path d="M17.5 15a4.5 4.5 0 0 0 .4-8.98 6 6 0 0 0-11.7 1.62A4 4 0 0 0 7 15h10.5Z" />
+<path d="M8 19l-1 2M12.5 19l-1 2M17 19l-1 2" />
+</svg>
+);
+}
+
+// ステータスの小アイコン（顔=猫／肌=しずく／髪=流れ）
+function StatusIcon({ name }: { name: "cat" | "drop" | "hair" }) {
+const common = {
+width: 11,
+height: 11,
+viewBox: "0 0 24 24",
+fill: "none",
+stroke: "currentColor",
+strokeWidth: 2,
+strokeLinecap: "round" as const,
+strokeLinejoin: "round" as const,
+"aria-hidden": true,
+};
+if (name === "cat")
+return (
+<svg {...common}>
+<circle cx="12" cy="13.5" r="5.5" />
+<path d="M7.5 9.5 6 5l4 2M16.5 9.5 18 5l-4 2" />
+</svg>
+);
+if (name === "drop")
+return (
+<svg {...common}>
+<path d="M12 3.5s5.5 5.8 5.5 9.3a5.5 5.5 0 1 1-11 0C6.5 9.3 12 3.5 12 3.5Z" />
+</svg>
+);
+return (
+<svg {...common}>
+<path d="M5 19c-1-5 .5-8 2.5-10A5.5 5.5 0 0 1 17.5 9c2 2 3.5 5 2.5 10" />
+<path d="M9.5 19.5c-.5-3.5.5-6 2.5-8" />
+</svg>
 );
 }
 
@@ -379,6 +464,12 @@ setProfile((prev) => ({ ...prev, [key]: prev[key] === value? "": value }));
 };
 const baseStatus = [profile.bone, profile.pc].filter(Boolean).join("×");
 const extraStatus = tier === "no_login"? "": [profile.face, profile.skin, profile.hair].filter(Boolean).join("・");
+const statusRows: { icon: "cat" | "drop" | "hair"; value: string }[] = [];
+if (tier !== "no_login") {
+if (profile.face) statusRows.push({ icon: "cat", value: profile.face });
+if (profile.skin) statusRows.push({ icon: "drop", value: profile.skin });
+if (profile.hair) statusRows.push({ icon: "hair", value: profile.hair });
+}
 
 const editingSituation = editing
 ? visibleSituations.find((s) => s.situation_id === editing)?? null
@@ -413,32 +504,36 @@ className="absolute inset-0 h-full w-full object-cover object-top"
 <span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-3">
 {coverMeta.weather? (
 <span
-className="block border px-2 py-1 text-[11px] leading-relaxed"
+className="flex items-start gap-2 px-2.5 py-2 text-[11px] leading-snug"
 style={{
-borderColor: "var(--text)",
-background: "rgba(242,224,201,0.88)",
+background: "rgba(242,224,201,0.94)",
 color: "var(--text)",
+boxShadow: "0 1px 4px rgba(43,35,32,0.18)",
 }}
 >
-銀座（東京都・中央区）
-<br />
-{coverMeta.weather.label}　最高{coverMeta.weather.max}℃／最低
-{coverMeta.weather.min}℃
+<span className="mt-0.5 shrink-0">
+<WeatherIcon name={coverMeta.weather.icon} />
+</span>
+<span>
+<span className="block font-bold tracking-wider">
+GINZA {coverMeta.weather.max}° / {coverMeta.weather.min}°
 {coverMeta.weather.now !== null && (
-<>
-<br />
-いま{coverMeta.weather.now}℃ ― {coverMeta.weather.condition}
-</>
+<span className="font-medium">（いま{coverMeta.weather.now}°）</span>
 )}
+</span>
+<span className="block" style={{ color: "var(--muted)" }}>
+{coverMeta.weather.label}・{coverMeta.weather.conditionShort}
+</span>
+</span>
 </span>
 ): (
 <span />
 )}
 <span
 className="block px-3 py-2 text-right"
-style={{ background: "rgba(242,224,201,0.82)", color: "var(--text)" }}
+style={{ background: "rgba(242,224,201,0.96)", color: "var(--text)", boxShadow: "0 1px 4px rgba(43,35,32,0.18)" }}
 >
-<span className="block text-[10px] tracking-widest">
+<span className="block whitespace-nowrap text-[10px] tracking-widest">
 {coverMeta.todayLabel}
 </span>
 <span
@@ -448,7 +543,7 @@ style={{ fontFamily: "var(--font-display)" }}
 Enaema
 </span>
 <span
-className="block text-[9px] tracking-[0.2em]"
+className="block whitespace-nowrap text-[9px] tracking-[0.2em]"
 style={{ color: "var(--muted)" }}
 >
 今日の私を、もっと好きになる。
@@ -458,6 +553,16 @@ style={{ color: "var(--muted)" }}
 <span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/20 to-transparent px-4 pb-12 pt-16 text-white">
 <span className="flex items-end justify-between gap-3">
 <span className="block">
+<span
+className="mb-1.5 block text-[17px] italic leading-none"
+style={{
+fontFamily: "var(--font-display)",
+color: "#F2C4C4",
+textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+}}
+>
+Make today the best day
+</span>
 {coverTasks.length > 0? (
 <span className="pointer-events-auto block space-y-1">
 {coverTasks.map((t, i) => (
@@ -492,16 +597,17 @@ style={{ borderColor: "#EBCB8B"}}
 </span>
 {(baseStatus || extraStatus) && (
 <button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
-{extraStatus &&
-extraStatus.split("・").map((v) => (
-<span key={v} className="block tracking-[0.2em]">
-{v}
+{statusRows.map((r) => (
+<span
+key={r.value}
+className="flex items-center justify-end gap-1.5 tracking-[0.2em]"
+>
+<StatusIcon name={r.icon} />
+{r.value}
 </span>
 ))}
 {baseStatus && (
-<span className="mt-1 block underline underline-offset-4">
-骨格{baseStatus}
-</span>
+<span className="mt-1 block font-medium">骨格{baseStatus}</span>
 )}
 </button>
 )}
@@ -571,8 +677,8 @@ i <= Math.min(slide, slides.length - 1)
 </>
 )}
 <span className="pointer-events-auto mt-2.5 flex justify-end gap-2">
-<GlassPill label="表紙へ" icon="home" onClick={() => setView("cover")} />
-<GlassPill label="セット一覧" icon="list" onClick={() => setPanelOpen(true)} />
+<GlassPill label="表紙" icon="home" onClick={() => setView("cover")} />
+<GlassPill label="一覧" icon="list" onClick={() => setPanelOpen(true)} />
 {currentSituation && (
 <GlassPill
 label="タスクを選ぶ"
@@ -608,7 +714,7 @@ style={panelOpen? { background: "var(--bg)" }: undefined}
 <button
 type="button"
 onClick={() => setPanelOpen(false)}
-className="text-xs underline"
+className="text-xs"
 style={{ color: "var(--muted)" }}
 >
 閉じる
@@ -622,10 +728,15 @@ style={{ color: "var(--muted)" }}
 <LoginButton />
 </div>
 <div
-className="mt-4 flex gap-4 border-b pb-4 text-[11px]"
-style={{ borderColor: "var(--line)", color: "var(--muted)"}}
+className="mt-4 flex gap-2 border-b pb-4"
+style={{ borderColor: "var(--line)" }}
 >
-<button type="button" onClick={startNewSet} className="underline">
+<button
+type="button"
+onClick={startNewSet}
+className="rounded-full border bg-white/70 px-3 py-1.5 text-[11px]"
+style={{ borderColor: "var(--line)", color: "var(--text)" }}
+>
 新規セット
 </button>
 <button
@@ -634,7 +745,8 @@ onClick={() => {
 setPanelOpen(false);
 playFromTop();
 }}
-className="underline"
+className="rounded-full border bg-white/70 px-3 py-1.5 text-[11px]"
+style={{ borderColor: "var(--line)", color: "var(--text)" }}
 >
 前回の続き
 </button>
@@ -644,7 +756,8 @@ onClick={() => {
 setPanelOpen(false);
 playFromTop();
 }}
-className="underline"
+className="rounded-full border bg-white/70 px-3 py-1.5 text-[11px]"
+style={{ borderColor: "var(--line)", color: "var(--text)" }}
 >
 やり直し
 </button>
@@ -670,7 +783,8 @@ style={{ borderColor: "var(--text)"}}
 <button
 type="button"
 onClick={() => setEditing(situation.situation_id)}
-className="underline"
+className="rounded-full border bg-white/70 px-2.5 py-0.5 text-[11px]"
+style={{ borderColor: "var(--line)", color: "var(--text)" }}
 >
 セットを変える
 </button>
@@ -744,7 +858,7 @@ style={{ borderColor: "var(--text)"}}
 <button
 type="button"
 onClick={() => setEditing(null)}
-className="text-xs underline"
+className="text-xs"
 style={{ color: "var(--muted)"}}
 >
 閉じる
@@ -806,14 +920,18 @@ selected
 {task.task_name}
 </span>
 <span
-className="ml-auto shrink-0 text-xs"
+className={
+selected
+? "ml-auto shrink-0 text-xs font-bold"
+: "ml-auto shrink-0 rounded-full border px-3 py-1 text-xs"
+}
 style={
 selected
 ? { color: "var(--accent)"}
-: { color: "var(--muted)"}
+: { borderColor: "var(--accent)", color: "var(--accent)" }
 }
 >
-{selected? "セット中": "追加する"}
+{selected? "✓ セット中": "追加する"}
 </span>
 </button>
 </li>
@@ -824,7 +942,7 @@ selected
 <button
 type="button"
 onClick={() => setEditing(null)}
-className="mt-4 w-full border py-3 text-sm font-bold"
+className="mt-4 w-full rounded-full border py-3 text-sm font-bold"
 style={{ borderColor: "var(--text)"}}
 >
 この内容でセットする
@@ -840,11 +958,11 @@ className="max-h-[85vh] w-full max-w-md overflow-y-auto border-t-2 bg-[var(--sur
 style={{ borderColor: "var(--text)"}}
 >
 <div className="flex items-baseline justify-between">
-<h3 className="text-base font-bold">【あなたのステータス】</h3>
+<h3 className="text-base font-bold">あなたのステータス</h3>
 <button
 type="button"
 onClick={() => setEditingProfile(false)}
-className="text-xs underline"
+className="text-xs"
 style={{ color: "var(--muted)"}}
 >
 閉じる
@@ -852,7 +970,7 @@ style={{ color: "var(--muted)"}}
 </div>
 {PROFILE_FIELDS.map((field) => (
 <div key={field.key} className="mt-4">
-<p className="text-sm font-bold">【{field.label}】</p>
+<p className="text-sm font-bold">{field.label}</p>
 {field.loginOnly && tier === "no_login" && (
 <p className="mt-0.5 text-[11px]" style={{ color: "var(--muted)"}}>
 ログインすると表紙に出ます（入力は今できます）
@@ -866,10 +984,10 @@ return (
 key={opt}
 type="button"
 onClick={() => toggleProfileOption(field.key, opt)}
-className="border px-3 py-1.5 text-[13px]"
+className="rounded-full border px-3.5 py-1.5 text-[13px]"
 style={
 selected
-? { borderColor: "var(--accent)", color: "var(--accent)", fontWeight: 700 }
+? { borderColor: "var(--accent)", color: "var(--accent)", fontWeight: 700, background: "rgba(166,39,43,0.06)" }
 : { borderColor: "var(--line)", color: "var(--muted)" }
 }
 >
@@ -883,7 +1001,7 @@ selected
 <button
 type="button"
 onClick={() => setEditingProfile(false)}
-className="mt-5 w-full border py-3 text-sm font-bold"
+className="mt-5 w-full rounded-full border py-3 text-sm font-bold"
 style={{ borderColor: "var(--text)"}}
 >
 この内容で表紙に出す

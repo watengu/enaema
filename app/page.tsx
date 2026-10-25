@@ -24,6 +24,8 @@ min: number;
 type Weather = DayWeather & {
 now: number | null;
 condition: string;
+conditionShort: string;
+icon: string;
 tomorrow: DayWeather | null;
 };
 
@@ -81,6 +83,27 @@ if (max >= 11) return "暖かめのコーデが安心な一日";
 return "しっかり防寒したい一日";
 }
 
+// 表紙用の短い一言（ボックスに収まる長さ）
+function conditionShort(code: number, max: number): string {
+if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95)
+return "雨対策・湿気ケアを";
+if (code >= 71 && code <= 86) return "足元と防寒に";
+if (max >= 28) return "暑さ・紫外線対策を";
+if (max >= 23) return "軽やかな装いで";
+if (max >= 17) return "羽織りものが安心";
+if (max >= 11) return "暖かめコーデで";
+return "しっかり防寒を";
+}
+
+// 天気アイコンの種類（表紙ボックス用）
+function weatherIconName(code: number): string {
+if (code === 0 || code === 1) return "sun";
+if (code === 2 || code === 3 || code === 45 || code === 48) return "cloud";
+if (code >= 71 && code <= 86) return "snow";
+if (code >= 95) return "storm";
+return "rain";
+}
+
 // 銀座の天気（Open-Meteo、無料・キー不要）。失敗時は null（天気ボックスを出さない）
 async function fetchWeather(): Promise<Weather | null> {
 try {
@@ -110,6 +133,8 @@ max,
 min,
 now: Number.isNaN(nowRaw) ? null : Math.round(nowRaw),
 condition: conditionLine(code, max),
+conditionShort: conditionShort(code, max),
+icon: weatherIconName(code),
 tomorrow,
 };
 } catch {
@@ -225,6 +250,8 @@ max: weather.max,
 min: weather.min,
 now: weather.now,
 condition: weather.condition,
+conditionShort: weather.conditionShort,
+icon: weather.icon,
 }
 : null,
 }}
