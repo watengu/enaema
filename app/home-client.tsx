@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v15（表紙を「明るい紙にインクで印刷」に反転：黒い帯を廃し、クリームのフェード＋インクの明朝で世界観に揃える）
+// Enaema ホームクライアント部品 v15.1（イメージ画像の作法を吸収：傾けた手書き2か所・アクセントはローズに統一・ステータスに細罫）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -552,18 +552,20 @@ style={{ color: "var(--muted)" }}
 </span>
 </span>
 </span>
-<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/55 to-transparent px-4 pb-12 pt-20" style={{ color: "var(--text)" }}>
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/55 to-transparent px-4 pb-14 pt-20" style={{ color: "var(--text)" }}>
 <span className="flex items-end justify-between gap-3">
 <span className="block">
 <span
-className="mb-1.5 block text-[17px] italic leading-none"
+className="mb-2 block text-[16px] italic leading-none"
 style={{
 fontFamily: "var(--font-display)",
 color: "#B76E79",
 textShadow: "0 0 8px rgba(247,238,221,0.9)",
+transform: "rotate(-5deg)",
+transformOrigin: "left center",
 }}
 >
-Make today the best day
+Today's Tasks
 </span>
 {coverTasks.length > 0? (
 <span className="pointer-events-auto block space-y-1">
@@ -598,19 +600,36 @@ style={{ fontFamily: "var(--font-display-jp)", letterSpacing: "0.04em" }}
 )}
 <span
 className="mt-3 block border-b-2 pb-1 text-[15px] font-medium"
-style={{ borderColor: "#C9A227", fontFamily: "var(--font-display-jp)", letterSpacing: "0.03em" }}
+style={{ borderColor: "#B76E79", fontFamily: "var(--font-display-jp)", letterSpacing: "0.03em" }}
 >
 {currentSituation
 ? `${currentSituation.name}のルーチン、今日も整える。`
 : "今日のルーチン、今日も整える。"}
 </span>
+<span
+className="mt-2 block text-[15px] italic leading-none"
+style={{
+fontFamily: "var(--font-display)",
+color: "#B76E79",
+textShadow: "0 0 8px rgba(247,238,221,0.9)",
+transform: "rotate(-5deg)",
+transformOrigin: "left center",
+}}
+>
+Make today the best day
+</span>
 </span>
 {(baseStatus || extraStatus) && (
 <button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]">
-{statusRows.map((r) => (
+{statusRows.map((r, i) => (
 <span
 key={r.value}
 className="flex items-center justify-end gap-1.5 tracking-[0.2em]"
+style={
+i > 0
+? { borderTop: "1px solid rgba(43,35,32,0.18)", marginTop: 3, paddingTop: 3 }
+: undefined
+}
 >
 <StatusIcon name={r.icon} />
 {r.value}
@@ -623,7 +642,7 @@ className="flex items-center justify-end gap-1.5 tracking-[0.2em]"
 )}
 </span>
 </span>
-<span className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 px-4 pb-3">
+<span className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 px-4 pb-3.5">
 {currentSituation && (
 <GlassPill
 label="タスクを選ぶ"
