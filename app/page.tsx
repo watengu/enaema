@@ -1,4 +1,4 @@
-// Enaema ホーム画面 v13（2026-10-25）— 表紙＋タスクセット＋ステータス＋Bot テキストロール
+// Enaema ホーム画面 v13.2（2026-10-25）— マストヘッドを圧縮し表紙の表示領域を確保— 表紙＋タスクセット＋ステータス＋Bot テキストロール
 // 根拠: reconciliation-2026-10-24.md（ホーム＝雑誌の表紙／最小ローンチ範囲／Bot ロールは #7 から前倒し）
 // 構成: マストヘッド（題字＋日付＋天気ボックス）はサーバ側、表紙とタスク表示は HomeClient、
 //       ホーム下部の細い帯に Ticker（天気の実データ＋ DB の ticker_items を流す）
@@ -199,7 +199,7 @@ style={{ background: "var(--bg)", color: "var(--text)" }}
 {/* マストヘッド（雑誌の題字） */}
 <header className="shrink-0 pt-4 text-center">
 <div
-className="border-y-4 border-double py-3"
+className="border-y-4 border-double py-2"
 style={{ borderColor: "var(--text)" }}
 >
 <p
@@ -209,36 +209,30 @@ style={{ color: "var(--muted)", fontFamily: "var(--font-display)" }}
 DAILY BEAUTY MAGAZINE
 </p>
 <h1
-className="mt-1 text-4xl font-semibold tracking-wide"
+className="mt-1 text-[32px] font-semibold tracking-wide"
 style={{ fontFamily: "var(--font-display)" }}
 >
 Enaema
 </h1>
-<p className="mt-2 text-xs" style={{ color: "var(--muted)" }}>
+<p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
 今日の私を、もっと好きになる。
 </p>
 </div>
 {/* 日付＋天気ボックス */}
 <div className="flex items-center justify-between gap-2 py-2 text-[11px]">
 <span style={{ color: "var(--muted)" }}>{todayLabelJST()}</span>
+<span className="flex items-center gap-2">
 {weather && (
 <span
 className="border px-2 py-1 whitespace-nowrap"
 style={{ borderColor: "var(--text)" }}
 >
 銀座 {weather.label}　最高{weather.max}℃／最低{weather.min}℃
-{weather.now !== null && `　いま${weather.now}℃`}
 </span>
 )}
-</div>
-<div className="flex justify-end pb-1">
 <LoginButton />
+</span>
 </div>
-{weather && (
-<p className="pb-2 text-[11px]" style={{ color: "var(--muted)" }}>
-今日のコンディション ― {weather.condition}
-</p>
-)}
 </header>
 
 {loadError ? (

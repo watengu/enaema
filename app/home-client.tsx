@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v13.1（選択はポップアップに集約：表紙のステータス組版タップで入力ポップアップ／帯に「タスクを選ぶ」）
+// Enaema ホームクライアント部品 v13.2（ヒーローは上寄せで顔を守る／表紙下の帯は2段にして文字崩れを解消）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -345,7 +345,7 @@ className="absolute inset-0 h-full w-full"
 <img
 src={heroUrl}
 alt=""
-className="absolute inset-0 h-full w-full object-cover"
+className="absolute inset-0 h-full w-full object-cover object-top"
 />
 ): null}
 <span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-3">
@@ -433,15 +433,15 @@ extraStatus.split("・").map((v) => (
 </span>
 </div>
 <div
-className="flex shrink-0 items-baseline justify-between gap-2 px-1 pb-1 pt-2 text-[11px]"
+className="shrink-0 px-1 pb-1 pt-2 text-[11px]"
 style={{ color: "var(--muted)"}}
 >
-<span>
+<p>
 {baseStatus
 ? "表紙をタップすると、ルーチンが流れます"
 : "ステータスを入れると、あなたの表紙になります"}
-</span>
-<span className="flex shrink-0 gap-3">
+</p>
+<div className="mt-1 flex justify-end gap-3">
 <button
 type="button"
 onClick={() => {
@@ -467,7 +467,7 @@ className="underline"
 <button type="button" onClick={() => setEditingProfile(true)} className="underline">
 ステータスを入力
 </button>
-</span>
+</div>
 </div>
 </>
 ): (
