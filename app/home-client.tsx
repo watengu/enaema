@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v15.4（舞台も表紙と同じ明るい紙＋インクの文法に統一：黒い帯を廃し、クリームのフェード＋インク文字・バー）
+// Enaema ホームクライアント部品 v15.5（表紙キャッチを天気連動に：雨・雪・猛暑・厳寒で出し分け、それ以外は従来の時間帯キャッチ）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -285,6 +285,30 @@ return (
 <path d="M9.5 19.5c-.5-3.5.5-6 2.5-8" />
 </svg>
 );
+}
+
+type CoverWeather = {
+label: string;
+max: number;
+min: number;
+now: number | null;
+condition: string;
+conditionShort: string;
+icon: string;
+} | null;
+
+// 表紙のキャッチは「今日の条件で変わる文言だけ」という原則に従い、天気で出し分ける
+function coverCatch(weather: CoverWeather, situationName: string | null): string {
+if (weather) {
+if (weather.icon === "rain" || weather.icon === "storm")
+return "雨の日は、崩れ対策を先手で。";
+if (weather.icon === "snow") return "雪の日は、冷えと乾燥に気をつけて。";
+if (weather.max >= 30) return "暑さで崩れやすい日。皮脂ケアを厚めに。";
+if (weather.max <= 8) return "冷え込む日。保湿を厚めに。";
+}
+return situationName
+? `${situationName}のルーチン、今日も整える。`
+: "今日のルーチン、今日も整える。";
 }
 
 export default function HomeClient({
@@ -682,8 +706,8 @@ className="mt-3 block border-b-2 pb-1 text-[15px] font-medium"
 style={{ borderColor: "#B76E79", fontFamily: "var(--font-display-jp)", letterSpacing: "0.03em" }}
 >
 {currentSituation
-? `${currentSituation.name}のルーチン、今日も整える。`
-: "今日のルーチン、今日も整える。"}
+? coverCatch(coverMeta.weather, currentSituation.name)
+: coverCatch(coverMeta.weather, null)}
 </span>
 <span
 className="mt-2 block text-[15px] italic leading-none"
