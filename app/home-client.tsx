@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v12.2（v12.1 の型ガード修正：字幕の task 参照を null 安全に戻し、ビルドを通す）
+// Enaema ホームクライアント部品 v12.3（カバーラインの項目名を Task.task_name に修正：型エラーの解消）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -348,7 +348,7 @@ className="absolute inset-0 h-full w-full object-cover"
 <span className="mt-3 block space-y-1">
 {coverTasks.map((t) => (
 <span key={t.task_id} className="block text-[13px]">
-<span style={{ color: "#EBCB8B"}}>◆</span> {t.name}
+<span style={{ color: "#EBCB8B"}}>◆</span> {t.task_name}
 </span>
 ))}
 </span>
