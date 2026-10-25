@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v15.3（初回3ステップ説明：初回だけ自動表示、パネルの「使い方を見る」から再表示可）
+// Enaema ホームクライアント部品 v15.4（舞台も表紙と同じ明るい紙＋インクの文法に統一：黒い帯を廃し、クリームのフェード＋インク文字・バー）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -752,7 +752,7 @@ onClick={advance}
 className="absolute inset-0 h-full w-full"
 aria-label="次のシーンへ"
 />
-<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/60 via-black/30 to-transparent px-4 pb-3 pt-12 text-left">
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-[linear-gradient(to_top,rgba(247,238,221,0.97),rgba(247,238,221,0.6)_55%,rgba(247,238,221,0))] px-4 pb-3 pt-16 text-left" style={{ color: "var(--text)" }}>
 <span className="mb-2 flex gap-1">
 {slides.map((s, i) => (
 <span
@@ -761,27 +761,33 @@ className="h-[3px] flex-1 rounded-full"
 style={{
 background:
 i <= Math.min(slide, slides.length - 1)
-? "#FFFFFF"
-: "rgba(255,255,255,0.35)",
+? "var(--text)"
+: "rgba(43,35,32,0.25)",
 }}
 />
 ))}
 </span>
 {currentSituation && (
-<span className="block text-[10px] tracking-widest text-white/75">
+<span
+className="block text-[10px] tracking-widest"
+style={{ color: "rgba(43,35,32,0.6)" }}
+>
 {currentSituation.name}のルーチン
 </span>
 )}
 {current.task && (
 <>
 <span
-className="mt-0.5 block text-[17px] font-bold text-white"
+className="mt-0.5 block text-[17px] font-bold"
 style={{ fontFamily: "var(--font-display-jp)" }}
 >
 {current.task.task_name}
 </span>
 {current.task.dialogue && (
-<span className="mt-0.5 block text-xs leading-relaxed text-white/85">
+<span
+className="mt-0.5 block text-xs leading-relaxed"
+style={{ color: "rgba(43,35,32,0.75)" }}
+>
 {current.task.dialogue}
 </span>
 )}
