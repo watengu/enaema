@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v14.4（表紙の情報の質を上げる：天気ボックス刷新・ステータスにアイコン・手書き風アクセント）
+// Enaema ホームクライアント部品 v14.5（天気と題字の箱を外し、絵に直接印刷する。薄いフェードで可読性だけ担保）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -501,15 +501,12 @@ alt=""
 className="absolute inset-0 h-full w-full object-cover object-top"
 />
 ): null}
+<span className="pointer-events-none absolute inset-x-0 top-0 block h-32 bg-gradient-to-b from-[#F7EEDD]/80 via-[#F7EEDD]/30 to-transparent" />
 <span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-3">
 {coverMeta.weather? (
 <span
-className="flex items-start gap-2 px-2.5 py-2 text-[11px] leading-snug"
-style={{
-background: "rgba(242,224,201,0.94)",
-color: "var(--text)",
-boxShadow: "0 1px 4px rgba(43,35,32,0.18)",
-}}
+className="flex items-start gap-2 px-1 py-1 text-[11px] leading-snug"
+style={{ color: "var(--text)" }}
 >
 <span className="mt-0.5 shrink-0">
 <WeatherIcon name={coverMeta.weather.icon} />
@@ -530,12 +527,16 @@ GINZA {coverMeta.weather.max}° / {coverMeta.weather.min}°
 <span />
 )}
 <span
-className="block px-3 py-2 text-right"
-style={{ background: "rgba(242,224,201,0.96)", color: "var(--text)", boxShadow: "0 1px 4px rgba(43,35,32,0.18)" }}
+className="block px-1 py-1 text-right"
+style={{ color: "var(--text)" }}
 >
 <span className="block whitespace-nowrap text-[10px] tracking-widest">
 {coverMeta.todayLabel}
 </span>
+<span
+className="my-1 block border-t"
+style={{ borderColor: "rgba(43,35,32,0.35)" }}
+/>
 <span
 className="block text-[30px] font-semibold leading-tight"
 style={{ fontFamily: "var(--font-display)" }}
