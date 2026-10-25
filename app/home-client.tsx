@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v15.1（イメージ画像の作法を吸収：傾けた手書き2か所・アクセントはローズに統一・ステータスに細罫）
+// Enaema ホームクライアント部品 v15.2（同意フロー：ログイン後に規約同意を確認し、未同意なら特典を止めて同意シートを出す）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -17,7 +17,8 @@ canSeeSituation,
 canSelectTask,
 type Tier,
 } from "./permissions";
-import { getSession } from "./auth-client";
+import { getSession, type Session } from "./auth-client";
+import { checkConsent, recordConsent, ConsentSheet } from "./consent";
 import LoginButton from "./login-button";
 
 export type Situation = {
@@ -282,15 +283,33 @@ coverMeta,
 }: Props) {
 const [tier, setTier] = useState<Tier>(initialTier);
 const [tierReady, setTierReady] = useState(false);
+const [session, setSession] = useState<Session | null>(null);
+const [consentNeeded, setConsentNeeded] = useState(false);
+const [consentOpen, setConsentOpen] = useState(false);
 const loadStartedRef = useRef(false);
 
-// セッション確認（クライアント側）: 有効なセッションがあれば free に上げる
+// セッション確認（クライアント側）: 有効なセッション＋規約への同意があれば free に上げる
+// 未同意なら同意シートを出す（同意するまで特典は使えない）。確認に失敗したらログインは妨げない
 useEffect(() => {
 let cancelled = false;
 getSession()
-.then((s) => {
+.then(async (s) => {
 if (cancelled) return;
-setTier(s? "free": "no_login");
+setSession(s);
+if (!s) {
+setTier("no_login");
+setTierReady(true);
+return;
+}
+const c = await checkConsent(s);
+if (cancelled) return;
+if (c === "needed") {
+setConsentNeeded(true);
+setConsentOpen(true);
+setTier("no_login");
+} else {
+setTier("free");
+}
 setTierReady(true);
 })
 .catch(() => {
@@ -300,6 +319,17 @@ return () => {
 cancelled = true;
 };
 }, []);
+
+const agreeConsent = async (): Promise<boolean> => {
+if (!session) return false;
+const ok = await recordConsent(session);
+if (ok) {
+setConsentNeeded(false);
+setConsentOpen(false);
+setTier("free");
+}
+return ok;
+};
 
 const visibleSituations = useMemo(
 () => situations.filter((s) => canSeeSituation(tier, s.access_tier)),
@@ -758,6 +788,16 @@ style={{ color: "var(--muted)" }}
 >
 <span>アカウント</span>
 <LoginButton />
+{consentNeeded && (
+<button
+type="button"
+onClick={() => setConsentOpen(true)}
+className="underline"
+style={{ color: "var(--accent)" }}
+>
+利用規約への同意が必要です
+</button>
+)}
 </div>
 <div
 className="mt-4 flex gap-2 border-b pb-4"
@@ -1040,6 +1080,12 @@ style={{ borderColor: "var(--text)"}}
 </button>
 </div>
 </div>
+)}
+{consentOpen && session && (
+<ConsentSheet
+onAgree={agreeConsent}
+onLater={() => setConsentOpen(false)}
+/>
 )}
 </>
 );
