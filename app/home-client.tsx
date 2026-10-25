@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v12.3（カバーラインの項目名を Task.task_name に修正：型エラーの解消）
+// Enaema ホームクライアント部品 v13.1（選択はポップアップに集約：表紙のステータス組版タップで入力ポップアップ／帯に「タスクを選ぶ」）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -45,6 +45,16 @@ characterName: string;
 imageBase: string;
 tier: Tier;
 currentKey: string;
+coverMeta: {
+todayLabel: string;
+weather: {
+label: string;
+max: number;
+min: number;
+now: number | null;
+condition: string;
+} | null;
+};
 };
 
 const SET_KEY = "enaema.taskset.v1";
@@ -121,6 +131,7 @@ characterName,
 imageBase,
 tier: initialTier,
 currentKey,
+coverMeta,
 }: Props) {
 const [tier, setTier] = useState<Tier>(initialTier);
 const [tierReady, setTierReady] = useState(false);
@@ -319,15 +330,17 @@ return (
 <section className="flex h-full flex-col pt-2">
 {view === "cover"? (
 <>
-{/* 表紙（メインホーム）: ヒーロー＋カバーライン。タップで舞台へ */}
+{/* 表紙 v13: フルブリード＋表紙の組版（天気ボックス／特大カバーライン／ステータス）を画像の上に組む。表紙はハブ：全面タップで再生、カバーラインのタップでそのシーンへ */}
+<div className="relative -mx-4 min-h-0 flex-1 overflow-hidden">
 <button
 type="button"
+aria-label="ルーチンを再生"
 onClick={() => {
 setView("stage");
 playFromTop();
 }}
-className="relative block min-h-0 w-full flex-1 overflow-hidden rounded-md text-left"
->
+className="absolute inset-0 h-full w-full"
+/>
 {heroUrl? (
 <img
 src={heroUrl}
@@ -335,36 +348,100 @@ alt=""
 className="absolute inset-0 h-full w-full object-cover"
 />
 ): null}
-<span className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/60 via-black/25 to-transparent px-4 pb-4 pt-14 text-white">
-<span className="block text-[11px] tracking-[0.25em] opacity-90">
-今日の表紙
-</span>
-<span className="mt-1 block text-[22px] font-bold leading-snug">
-{currentSituation
-? `${currentSituation.name}のルーチン、今日も整える。`
-: "今日のルーチン"}
-</span>
-{coverTasks.length > 0 && (
-<span className="mt-3 block space-y-1">
-{coverTasks.map((t) => (
-<span key={t.task_id} className="block text-[13px]">
-<span style={{ color: "#EBCB8B"}}>◆</span> {t.task_name}
-</span>
-))}
-</span>
+<span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-3">
+{coverMeta.weather? (
+<span
+className="block border px-2 py-1 text-[11px] leading-relaxed"
+style={{
+borderColor: "var(--text)",
+background: "rgba(242,224,201,0.88)",
+color: "var(--text)",
+}}
+>
+銀座（東京都・中央区）
+<br />
+{coverMeta.weather.label}　最高{coverMeta.weather.max}℃／最低
+{coverMeta.weather.min}℃
+{coverMeta.weather.now !== null && (
+<>
+<br />
+いま{coverMeta.weather.now}℃ ― {coverMeta.weather.condition}
+</>
 )}
 </span>
+): (
+<span />
+)}
+<span className="block text-right text-[11px] font-semibold tracking-widest text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]">
+{coverMeta.todayLabel}
+<span className="mt-1 block text-[10px] tracking-[0.3em] opacity-90">
+今日の表紙
+</span>
+</span>
+</span>
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/20 to-transparent px-4 pb-4 pt-16 text-white">
+<span className="flex items-end justify-between gap-3">
+<span className="block">
+{coverTasks.length > 0? (
+<span className="pointer-events-auto block space-y-1">
+{coverTasks.map((t, i) => (
+<button
+key={t.task_id}
+type="button"
+onClick={() => {
+startedRef.current = true;
+setView("stage");
+setSlide(i);
+setCycle((c) => c + 1);
+}}
+className="block text-left text-[26px] font-bold leading-tight text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.45)]"
+>
+{t.task_name}
 </button>
+))}
+</span>
+): (
+<span className="block text-[26px] font-bold leading-tight">
+今日のルーチン
+</span>
+)}
+<span
+className="mt-3 block border-b-2 pb-1 text-[15px] font-medium"
+style={{ borderColor: "#EBCB8B"}}
+>
+{currentSituation
+? `${currentSituation.name}のルーチン、今日も整える。`
+: "今日のルーチン、今日も整える。"}
+</span>
+</span>
+{(baseStatus || extraStatus) && (
+<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+{extraStatus &&
+extraStatus.split("・").map((v) => (
+<span key={v} className="block tracking-[0.2em]">
+{v}
+</span>
+))}
+{baseStatus && (
+<span className="mt-1 block underline underline-offset-4">
+骨格{baseStatus}
+</span>
+)}
+</button>
+)}
+</span>
+</span>
+</div>
 <div
-className="shrink-0 px-1 pb-1 pt-2 text-[11px]"
+className="flex shrink-0 items-baseline justify-between gap-2 px-1 pb-1 pt-2 text-[11px]"
 style={{ color: "var(--muted)"}}
 >
-<p>
+<span>
 {baseStatus
-? `骨格${baseStatus}${extraStatus? ` ・ ${extraStatus}`: ""}`
+? "表紙をタップすると、ルーチンが流れます"
 : "ステータスを入れると、あなたの表紙になります"}
-</p>
-<div className="mt-1 flex justify-end gap-3">
+</span>
+<span className="flex shrink-0 gap-3">
 <button
 type="button"
 onClick={() => {
@@ -375,13 +452,22 @@ className="underline"
 >
 ルーチンを再生
 </button>
+{currentSituation && (
+<button
+type="button"
+onClick={() => setEditing(currentSituation.situation_id)}
+className="underline"
+>
+タスクを選ぶ
+</button>
+)}
 <button type="button" onClick={() => setPanelOpen(true)} className="underline">
 セット一覧
 </button>
 <button type="button" onClick={() => setEditingProfile(true)} className="underline">
 ステータスを入力
 </button>
-</div>
+</span>
 </div>
 </>
 ): (
@@ -468,7 +554,7 @@ type="button"
 onClick={() => setEditing(currentSituation.situation_id)}
 className="underline"
 >
-タスクを編集
+タスクを選ぶ
 </button>
 )}
 <button type="button" onClick={() => setEditingProfile(true)} className="underline">
