@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema タスク画面クライアント部品 v11.1（バーは画像の外の帯へ／ステータス帯は2段／パネル見出し復旧）
+// Enaema ホームクライアント部品 v12.1（舞台はタスクシーンのみに分離：表紙イラストをタスク画面に出さない）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -110,7 +110,7 @@ return Math.min(sceneCount - 1, Math.floor((elapsed / total) * sceneCount));
 type Slide = {
 key: string;
 imageUrl: string;
-task: Task | null; // null = 表紙スライド
+task: Task | null; // 舞台はタスクシーンのみ（表紙はホーム側で heroUrl を直接使う）
 };
 
 export default function HomeClient({
@@ -176,6 +176,7 @@ const [editingProfile, setEditingProfile] = useState(false);
 const [loaded, setLoaded] = useState(false);
 const [editing, setEditing] = useState<string | null>(null);
 const [panelOpen, setPanelOpen] = useState(false);
+const [view, setView] = useState<"cover" | "stage">("cover");
 const [slide, setSlide] = useState(0);
 const [cycle, setCycle] = useState(0); // タップでタイマーを仕切り直すための世代カウンタ
 const startedRef = useRef(false);
@@ -246,7 +247,6 @@ const deck = currentSituation? selectedTasks(currentSituation.situation_id): [];
 
 const slides: Slide[] = useMemo(() => {
 const list: Slide[] = [];
-if (heroUrl) list.push({ key: "cover", imageUrl: heroUrl, task: null});
 for (const t of deck) {
 list.push({ key: `task-${t.task_id}`, imageUrl: `${imageBase}${t.image_path}`, task: t});
 }
@@ -254,12 +254,12 @@ return list;
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [heroUrl, imageBase, deck.map((t) => t.task_id).join(",")]);
 
-// 初回だけ、開始位置を時刻に合わせる（表紙の次＝いまのシーン）
+// 初回だけ、開始位置を時刻に合わせる（いまのシーンから）
 useEffect(() => {
 if (startedRef.current || slides.length <= 1 ||!currentSituation) return;
 startedRef.current = true;
 const sceneIdx = timeSceneIndex(currentSituation.situation_id, deck.length);
-setSlide(heroUrl? sceneIdx + 1: sceneIdx);
+setSlide(sceneIdx);
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [slides.length]);
 
@@ -311,10 +311,81 @@ const editingSituation = editing
 ? visibleSituations.find((s) => s.situation_id === editing)?? null
 : null;
 
+const coverTasks = slides.flatMap((s) => (s.task? [s.task]: []));
+
 return (
 <>
 {/* 舞台: シーンが主役。字幕とストーリーバーだけを重ね、操作は下の細い帯とパネルに沈める */}
 <section className="flex h-full flex-col pt-2">
+{view === "cover"? (
+<>
+{/* 表紙（メインホーム）: ヒーロー＋カバーライン。タップで舞台へ */}
+<button
+type="button"
+onClick={() => {
+setView("stage");
+playFromTop();
+}}
+className="relative block min-h-0 w-full flex-1 overflow-hidden rounded-md text-left"
+>
+{heroUrl? (
+<img
+src={heroUrl}
+alt=""
+className="absolute inset-0 h-full w-full object-cover"
+/>
+): null}
+<span className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/60 via-black/25 to-transparent px-4 pb-4 pt-14 text-white">
+<span className="block text-[11px] tracking-[0.25em] opacity-90">
+今日の表紙
+</span>
+<span className="mt-1 block text-[22px] font-bold leading-snug">
+{currentSituation
+? `${currentSituation.name}のルーチン、今日も整える。`
+: "今日のルーチン"}
+</span>
+{coverTasks.length > 0 && (
+<span className="mt-3 block space-y-1">
+{coverTasks.map((t) => (
+<span key={t.task_id} className="block text-[13px]">
+<span style={{ color: "#EBCB8B"}}>◆</span> {t.name}
+</span>
+))}
+</span>
+)}
+</span>
+</button>
+<div
+className="shrink-0 px-1 pb-1 pt-2 text-[11px]"
+style={{ color: "var(--muted)"}}
+>
+<p>
+{baseStatus
+? `骨格${baseStatus}${extraStatus? ` ・ ${extraStatus}`: ""}`
+: "ステータスを入れると、あなたの表紙になります"}
+</p>
+<div className="mt-1 flex justify-end gap-3">
+<button
+type="button"
+onClick={() => {
+setView("stage");
+playFromTop();
+}}
+className="underline"
+>
+ルーチンを再生
+</button>
+<button type="button" onClick={() => setPanelOpen(true)} className="underline">
+セット一覧
+</button>
+<button type="button" onClick={() => setEditingProfile(true)} className="underline">
+ステータスを入力
+</button>
+</div>
+</div>
+</>
+): (
+<>
 {/* ストーリーバー: 画像の外（上の帯）に置き、キャラに線を重ねない */}
 <div className="flex shrink-0 gap-1 px-1 pb-2">
 {slides.map((s, i) => (
@@ -351,8 +422,6 @@ className="absolute inset-0 h-full w-full rounded-md object-cover"
 {currentSituation.name}のルーチン
 </span>
 )}
-{current.task? (
-<>
 <span className="mt-0.5 block text-base font-bold text-white">
 {current.task.task_name}
 </span>
@@ -361,14 +430,16 @@ className="absolute inset-0 h-full w-full rounded-md object-cover"
 {current.task.dialogue}
 </span>
 )}
-</>
-): (
-<span className="mt-0.5 block text-[15px] font-medium leading-relaxed text-white">
-朝から寝る前まで、今日の美容ルーチン。
-</span>
-)}
 </span>
 </button>
+)}
+{!current && (
+<div
+className="flex min-h-0 flex-1 items-center justify-center px-6 text-center text-sm"
+style={{ color: "var(--muted)"}}
+>
+いまの時間帯のセットがまだありません。「セット一覧」から作れます。
+</div>
 )}
 {/* 操作の帯: 静かなリンクとステータスだけ（本体の操作はパネル／ポップアップ） */}
 <div
@@ -381,6 +452,9 @@ style={{ color: "var(--muted)"}}
 : "ステータスを入れると、あなたの表紙になります"}
 </p>
 <div className="mt-1 flex justify-end gap-3">
+<button type="button" onClick={() => setView("cover")} className="underline">
+表紙へ
+</button>
 <button type="button" onClick={() => setPanelOpen(true)} className="underline">
 セット一覧
 </button>
@@ -398,6 +472,8 @@ className="underline"
 </button>
 </div>
 </div>
+</>
+)}
 </section>
 
 {/* 中身: 時間帯ごとの記事リストは「一覧」パネル内（ホーム自体は1画面に収める） */}
