@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v13.2（ヒーローは上寄せで顔を守る／表紙下の帯は2段にして文字崩れを解消）
+// Enaema ホームクライアント部品 v14.2（家具の格上げ：文字リンクを廃し、ピル＋アイコンに統一）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -18,6 +18,7 @@ canSelectTask,
 type Tier,
 } from "./permissions";
 import { getSession } from "./auth-client";
+import LoginButton from "./login-button";
 
 export type Situation = {
 situation_id: string;
@@ -122,6 +123,67 @@ key: string;
 imageUrl: string;
 task: Task | null; // 舞台はタスクシーンのみ（表紙はホーム側で heroUrl を直接使う）
 };
+
+
+// 家具 v14.2: 文字リンクをやめ、すりガラス風ピル＋アイコンに統一（初期HTMLの文法を卒業する）
+function PillIcon({ name }: { name: "check" | "list" | "sliders" | "home" }) {
+const common = {
+width: 12,
+height: 12,
+viewBox: "0 0 24 24",
+fill: "none",
+stroke: "currentColor",
+strokeWidth: 2,
+strokeLinecap: "round" as const,
+strokeLinejoin: "round" as const,
+"aria-hidden": true,
+};
+if (name === "check")
+return (
+<svg {...common}>
+<path d="M9 11l3 3L22 4" />
+<path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+</svg>
+);
+if (name === "list")
+return (
+<svg {...common}>
+<path d="M8 6h13M8 12h13M8 18h13" />
+<path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+</svg>
+);
+if (name === "sliders")
+return (
+<svg {...common}>
+<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3" />
+<path d="M1.5 14h5M9.5 8h5M17.5 16h5" />
+</svg>
+);
+return (
+<svg {...common}>
+<path d="M3 10.5 12 3l9 7.5" />
+<path d="M5 9.8V21h14V9.8" />
+</svg>
+);
+}
+
+function GlassPill(props: {
+label: string;
+icon: "check" | "list" | "sliders" | "home";
+onClick: () => void;
+}) {
+return (
+<button
+type="button"
+onClick={props.onClick}
+className="pointer-events-auto flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-3 text-[11px] font-medium shadow-sm transition active:scale-95"
+style={{ background: "rgba(255,255,255,0.92)", color: "var(--text)" }}
+>
+<PillIcon name={props.icon} />
+{props.label}
+</button>
+);
+}
 
 export default function HomeClient({
 situations,
@@ -372,14 +434,28 @@ color: "var(--text)",
 ): (
 <span />
 )}
-<span className="block text-right text-[11px] font-semibold tracking-widest text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]">
+<span
+className="block px-3 py-2 text-right"
+style={{ background: "rgba(242,224,201,0.82)", color: "var(--text)" }}
+>
+<span className="block text-[10px] tracking-widest">
 {coverMeta.todayLabel}
-<span className="mt-1 block text-[10px] tracking-[0.3em] opacity-90">
-今日の表紙
+</span>
+<span
+className="block text-[30px] font-semibold leading-tight"
+style={{ fontFamily: "var(--font-display)" }}
+>
+Enaema
+</span>
+<span
+className="block text-[9px] tracking-[0.2em]"
+style={{ color: "var(--muted)" }}
+>
+今日の私を、もっと好きになる。
 </span>
 </span>
 </span>
-<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/20 to-transparent px-4 pb-4 pt-16 text-white">
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/20 to-transparent px-4 pb-12 pt-16 text-white">
 <span className="flex items-end justify-between gap-3">
 <span className="block">
 {coverTasks.length > 0? (
@@ -431,49 +507,39 @@ extraStatus.split("・").map((v) => (
 )}
 </span>
 </span>
-</div>
-<div
-className="shrink-0 px-1 pb-1 pt-2 text-[11px]"
-style={{ color: "var(--muted)"}}
->
-<p>
-{baseStatus
-? "表紙をタップすると、ルーチンが流れます"
-: "ステータスを入れると、あなたの表紙になります"}
-</p>
-<div className="mt-1 flex justify-end gap-3">
-<button
-type="button"
-onClick={() => {
-setView("stage");
-playFromTop();
-}}
-className="underline"
->
-ルーチンを再生
-</button>
+<span className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 px-4 pb-3">
 {currentSituation && (
-<button
-type="button"
+<GlassPill
+label="タスクを選ぶ"
+icon="check"
 onClick={() => setEditing(currentSituation.situation_id)}
-className="underline"
->
-タスクを選ぶ
-</button>
+/>
 )}
-<button type="button" onClick={() => setPanelOpen(true)} className="underline">
-セット一覧
-</button>
-<button type="button" onClick={() => setEditingProfile(true)} className="underline">
-ステータスを入力
-</button>
-</div>
+<GlassPill label="セット一覧" icon="list" onClick={() => setPanelOpen(true)} />
+<GlassPill label="ステータス" icon="sliders" onClick={() => setEditingProfile(true)} />
+</span>
 </div>
 </>
 ): (
 <>
-{/* ストーリーバー: 画像の外（上の帯）に置き、キャラに線を重ねない */}
-<div className="flex shrink-0 gap-1 px-1 pb-2">
+{/* 舞台 v14.1: 画面そのものが舞台（全面画像／バーと字幕と操作は画像の中） */}
+{current && (
+<div className="relative -mx-4 min-h-0 flex-1 overflow-hidden">
+{/* eslint-disable-next-line @next/next/no-img-element */}
+<img
+key={current.key}
+src={current.imageUrl}
+alt={current.task? current.task.task_name: characterName}
+className="absolute inset-0 h-full w-full object-cover"
+/>
+<button
+type="button"
+onClick={advance}
+className="absolute inset-0 h-full w-full"
+aria-label="次のシーンへ"
+/>
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/60 via-black/30 to-transparent px-4 pb-3 pt-12 text-left">
+<span className="mb-2 flex gap-1">
 {slides.map((s, i) => (
 <span
 key={s.key}
@@ -481,28 +547,12 @@ className="h-[3px] flex-1 rounded-full"
 style={{
 background:
 i <= Math.min(slide, slides.length - 1)
-? "var(--accent)"
-: "rgba(43,35,32,0.18)",
+? "#FFFFFF"
+: "rgba(255,255,255,0.35)",
 }}
 />
 ))}
-</div>
-{current && (
-<button
-type="button"
-onClick={advance}
-className="relative block min-h-0 w-full flex-1"
-aria-label="次のシーンへ"
->
-{/* eslint-disable-next-line @next/next/no-img-element */}
-<img
-key={current.key}
-src={current.imageUrl}
-alt={current.task? current.task.task_name: characterName}
-className="absolute inset-0 h-full w-full rounded-md object-cover"
-/>
-{/* 字幕: シーンの言葉だけを下部に重ねる（セリフはDBの dialogue、入れば自動で出る） */}
-<span className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/25 to-transparent px-3 pb-3 pt-10 text-left">
+</span>
 {currentSituation && (
 <span className="block text-[10px] tracking-widest text-white/75">
 {currentSituation.name}のルーチン
@@ -520,8 +570,20 @@ className="absolute inset-0 h-full w-full rounded-md object-cover"
 )}
 </>
 )}
+<span className="pointer-events-auto mt-2.5 flex justify-end gap-2">
+<GlassPill label="表紙へ" icon="home" onClick={() => setView("cover")} />
+<GlassPill label="セット一覧" icon="list" onClick={() => setPanelOpen(true)} />
+{currentSituation && (
+<GlassPill
+label="タスクを選ぶ"
+icon="check"
+onClick={() => setEditing(currentSituation.situation_id)}
+/>
+)}
+<GlassPill label="ステータス" icon="sliders" onClick={() => setEditingProfile(true)} />
 </span>
-</button>
+</span>
+</div>
 )}
 {!current && (
 <div
@@ -531,37 +593,6 @@ style={{ color: "var(--muted)"}}
 いまの時間帯のセットがまだありません。「セット一覧」から作れます。
 </div>
 )}
-{/* 操作の帯: 静かなリンクとステータスだけ（本体の操作はパネル／ポップアップ） */}
-<div
-className="shrink-0 px-1 pb-1 pt-2 text-[11px]"
-style={{ color: "var(--muted)"}}
->
-<p>
-{baseStatus
-? `骨格${baseStatus}${extraStatus? ` ・ ${extraStatus}`: ""}`
-: "ステータスを入れると、あなたの表紙になります"}
-</p>
-<div className="mt-1 flex justify-end gap-3">
-<button type="button" onClick={() => setView("cover")} className="underline">
-表紙へ
-</button>
-<button type="button" onClick={() => setPanelOpen(true)} className="underline">
-セット一覧
-</button>
-{currentSituation && (
-<button
-type="button"
-onClick={() => setEditing(currentSituation.situation_id)}
-className="underline"
->
-タスクを選ぶ
-</button>
-)}
-<button type="button" onClick={() => setEditingProfile(true)} className="underline">
-ステータスを入力
-</button>
-</div>
-</div>
 </>
 )}
 </section>
@@ -582,6 +613,13 @@ style={{ color: "var(--muted)" }}
 >
 閉じる
 </button>
+</div>
+<div
+className="mt-3 flex items-center gap-2 text-[11px]"
+style={{ color: "var(--muted)" }}
+>
+<span>アカウント</span>
+<LoginButton />
 </div>
 <div
 className="mt-4 flex gap-4 border-b pb-4 text-[11px]"

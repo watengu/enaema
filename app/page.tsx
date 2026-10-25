@@ -1,13 +1,12 @@
-// Enaema ホーム画面 v13.2（2026-10-25）— マストヘッドを圧縮し表紙の表示領域を確保— 表紙＋タスクセット＋ステータス＋Bot テキストロール
+// Enaema ホーム画面 v14（2026-10-25）— ヘッダー/フッターを廃し、題字・日付・天気・ログインはすべて表紙側に集約— 表紙＋タスクセット＋ステータス＋Bot テキストロール
 // 根拠: reconciliation-2026-10-24.md（ホーム＝雑誌の表紙／最小ローンチ範囲／Bot ロールは #7 から前倒し）
-// 構成: マストヘッド（題字＋日付＋天気ボックス）はサーバ側、表紙とタスク表示は HomeClient、
-//       ホーム下部の細い帯に Ticker（天気の実データ＋ DB の ticker_items を流す）
+// 構成: 画面そのものが表紙。題字・日付・天気・操作はすべて HomeClient の表紙上に集約し、
+//       このファイルはデータ取得と最下部の細い Ticker 帯だけを担う
 // 権限: 現在は未ログイン前提（tier=no_login）。認証導入時にセッションの Tier を渡す。
 
 import HomeClient, { type Situation, type Task } from "./home-client";
 import Ticker from "./ticker";
 import { type Tier } from "./permissions";
-import LoginButton from "./login-button";
 
 type Character = {
 character_id: string;
@@ -192,48 +191,11 @@ tickerLines.push(...tickerTexts);
 
 return (
 <main
-className="h-[100dvh] overflow-hidden"
+className="h-svh overflow-hidden"
 style={{ background: "var(--bg)", color: "var(--text)" }}
 >
 <div className="mx-auto flex h-full w-full max-w-md flex-col px-4">
-{/* マストヘッド（雑誌の題字） */}
-<header className="shrink-0 pt-4 text-center">
-<div
-className="border-y-4 border-double py-2"
-style={{ borderColor: "var(--text)" }}
->
-<p
-className="text-[10px] tracking-[0.35em]"
-style={{ color: "var(--muted)", fontFamily: "var(--font-display)" }}
->
-DAILY BEAUTY MAGAZINE
-</p>
-<h1
-className="mt-1 text-[32px] font-semibold tracking-wide"
-style={{ fontFamily: "var(--font-display)" }}
->
-Enaema
-</h1>
-<p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-今日の私を、もっと好きになる。
-</p>
-</div>
-{/* 日付＋天気ボックス */}
-<div className="flex items-center justify-between gap-2 py-2 text-[11px]">
-<span style={{ color: "var(--muted)" }}>{todayLabelJST()}</span>
-<span className="flex items-center gap-2">
-{weather && (
-<span
-className="border px-2 py-1 whitespace-nowrap"
-style={{ borderColor: "var(--text)" }}
->
-銀座 {weather.label}　最高{weather.max}℃／最低{weather.min}℃
-</span>
-)}
-<LoginButton />
-</span>
-</div>
-</header>
+
 
 {loadError ? (
 <p
@@ -275,18 +237,7 @@ condition: weather.condition,
 <Ticker lines={tickerLines} />
 </div>
 
-{/* フッター（3タブ構成・テキスト） */}
-<footer
-className="shrink-0 border-t py-2 text-center"
-style={{ borderColor: "var(--line)" }}
->
-<p className="text-xs" style={{ color: "var(--muted)" }}>
-ホーム｜タイムライン｜マイページ
-</p>
-<p className="mt-2 text-[10px]" style={{ color: "var(--muted)" }}>
-Enaema — Buffly プロトタイプ
-</p>
-</footer>
+
 </div>
 </main>
 );

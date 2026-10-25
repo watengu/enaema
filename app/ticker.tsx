@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema Bot テキストロール（細い帯）
+// Enaema Bot テキストロール（細い帯）v14.2: 横スクロールをやめ、フェードで1行ずつ切り替える
 // - ファッションの小ネタ・予告・天気などを、表紙の外（ホーム下部）で静かに流す
 // - 細く・遅く・薄く。オンオフ可能（設定は端末内に保存、既定はオン）
 // - 文言はサーバ側で用意した lines をそのまま流す（天気＝実データ、 editorial＝DB の ticker_items）
@@ -31,6 +31,16 @@ window.localStorage.setItem(TICKER_KEY, next? "on": "off");
 }
 };
 
+const [idx, setIdx] = useState(0);
+
+useEffect(() => {
+if (!enabled || lines.length <= 1) return;
+const timer = window.setInterval(() => {
+setIdx((v) => (v + 1) % lines.length);
+}, 4500);
+return () => window.clearInterval(timer);
+}, [enabled, lines.length]);
+
 if (!ready || lines.length === 0) return null;
 
 if (!enabled) {
@@ -39,7 +49,7 @@ return (
 <button
 type="button"
 onClick={() => toggle(true)}
-className="text-[10px] underline"
+className="text-[10px]"
 style={{ color: "var(--muted)"}}
 >
 ニュースロールを出す
@@ -48,33 +58,26 @@ style={{ color: "var(--muted)"}}
 );
 }
 
-const joined = lines.join("　／　");
-const duration = Math.max(24, joined.length * 0.45);
-
 return (
 <div>
-<style>{`@keyframes enaema-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+<style>{`@keyframes enaema-fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 <div
 className="overflow-hidden border-y py-1.5"
 style={{ borderColor: "var(--line)"}}
 >
-<div
-className="flex whitespace-nowrap text-[11px]"
-style={{
-color: "var(--muted)",
-width: "max-content",
-animation: `enaema-ticker ${duration}s linear infinite`,
-}}
+<p
+key={idx}
+className="truncate text-[11px]"
+style={{ color: "var(--muted)", animation: "enaema-fade 0.5s ease" }}
 >
-<span className="pr-8">{joined}</span>
-<span className="pr-8" aria-hidden="true">{joined}</span>
-</div>
+{lines[idx % lines.length]}
+</p>
 </div>
 <div className="mt-1 text-right">
 <button
 type="button"
 onClick={() => toggle(false)}
-className="text-[10px] underline"
+className="text-[10px]"
 style={{ color: "var(--muted)"}}
 >
 ロールを隠す
