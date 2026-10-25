@@ -7,6 +7,7 @@
 import HomeClient, { type Situation, type Task } from "./home-client";
 import Ticker from "./ticker";
 import { type Tier } from "./permissions";
+import LoginButton from "./login-button";
 
 type Character = {
 character_id: string;
@@ -143,7 +144,7 @@ if (hour >= 17 && hour < 22) return "night";
 return "beforesleep";
 }
 
-// 認証導入までは未ログイン扱い（認証の工程でセッションから決める）
+// 初期値は未ログイン。実際の階層は HomeClient がセッション（localStorage）から決める
 const CURRENT_TIER: Tier = "no_login";
 
 export default async function Home() {
@@ -175,8 +176,6 @@ tickerTexts = await fetchTickerTexts();
 }
 
 const currentKey = currentSituationKeyJST();
-const currentName =
-situations.find((s) => s.situation_id === currentKey)?.name ?? "";
 
 const tickerLines: string[] = [];
 if (weather) {
@@ -193,14 +192,14 @@ tickerLines.push(...tickerTexts);
 
 return (
 <main
-className="min-h-screen"
+className="h-[100dvh] overflow-hidden"
 style={{ background: "var(--bg)", color: "var(--text)" }}
 >
-<div className="mx-auto w-full max-w-md px-4 pb-12">
+<div className="mx-auto flex h-full w-full max-w-md flex-col px-4">
 {/* マストヘッド（雑誌の題字） */}
-<header className="pt-6 text-center">
+<header className="shrink-0 pt-4 text-center">
 <div
-className="border-y-4 border-double py-4"
+className="border-y-4 border-double py-3"
 style={{ borderColor: "var(--text)" }}
 >
 <p
@@ -210,7 +209,7 @@ style={{ color: "var(--muted)", fontFamily: "var(--font-display)" }}
 DAILY BEAUTY MAGAZINE
 </p>
 <h1
-className="mt-1 text-5xl font-semibold tracking-wide"
+className="mt-1 text-4xl font-semibold tracking-wide"
 style={{ fontFamily: "var(--font-display)" }}
 >
 Enaema
@@ -232,33 +231,14 @@ style={{ borderColor: "var(--text)" }}
 </span>
 )}
 </div>
+<div className="flex justify-end pb-1">
+<LoginButton />
+</div>
 {weather && (
 <p className="pb-2 text-[11px]" style={{ color: "var(--muted)" }}>
 今日のコンディション ― {weather.condition}
 </p>
 )}
-{/* 時間帯セレクタ（｜区切り・各セクションへのリンク） */}
-<nav
-className="border-b pb-2 text-xs"
-style={{ borderColor: "var(--line)" }}
->
-{situations.map((s, i) => (
-<span key={s.situation_id}>
-{i > 0 && <span style={{ color: "var(--muted)" }}>｜</span>}
-<a
-href={`#situation-${s.situation_id}`}
-className={s.name === currentName ? "font-bold" : ""}
-style={
-s.name === currentName
-? { color: "var(--accent)" }
-: { color: "var(--muted)" }
-}
->
-{s.name}
-</a>
-</span>
-))}
-</nav>
 </header>
 
 {loadError ? (
@@ -269,6 +249,7 @@ style={{ color: "var(--muted)" }}
 マスタデータを読み込めませんでした。時間をおいて再度お試しください。
 </p>
 ) : (
+<div className="min-h-0 flex-1">
 <HomeClient
 situations={situations}
 tasks={tasks}
@@ -280,14 +261,17 @@ imageBase={`${SUPABASE_URL}/storage/v1/object/public/enaema-images/`}
 tier={CURRENT_TIER}
 currentKey={currentKey}
 />
+</div>
 )}
 
 {/* Bot テキストロール（表紙の外・ホーム下部の細い帯） */}
+<div className="shrink-0">
 <Ticker lines={tickerLines} />
+</div>
 
 {/* フッター（3タブ構成・テキスト） */}
 <footer
-className="mt-12 border-t pt-4 text-center"
+className="shrink-0 border-t py-2 text-center"
 style={{ borderColor: "var(--line)" }}
 >
 <p className="text-xs" style={{ color: "var(--muted)" }}>

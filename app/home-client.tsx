@@ -15,6 +15,7 @@ canSeeSituation,
 canSelectTask,
 type Tier,
 } from "./permissions";
+import { getSession } from "./auth-client";
 
 export type Situation = {
 situation_id: string;
@@ -116,9 +117,30 @@ tasks,
 heroUrl,
 characterName,
 imageBase,
-tier,
+tier: initialTier,
 currentKey,
 }: Props) {
+const [tier, setTier] = useState<Tier>(initialTier);
+const [tierReady, setTierReady] = useState(false);
+const loadStartedRef = useRef(false);
+
+// セッション確認（クライアント側）: 有効なセッションがあれば free に上げる
+useEffect(() => {
+let cancelled = false;
+getSession()
+.then((s) => {
+if (cancelled) return;
+setTier(s? "free": "no_login");
+setTierReady(true);
+})
+.catch(() => {
+if (!cancelled) setTierReady(true);
+});
+return () => {
+cancelled = true;
+};
+}, []);
+
 const visibleSituations = useMemo(
 () => situations.filter((s) => canSeeSituation(tier, s.access_tier)),
 [situations, tier]
@@ -151,11 +173,14 @@ const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
 const [editingProfile, setEditingProfile] = useState(false);
 const [loaded, setLoaded] = useState(false);
 const [editing, setEditing] = useState<string | null>(null);
+const [panelOpen, setPanelOpen] = useState(false);
 const [slide, setSlide] = useState(0);
 const [cycle, setCycle] = useState(0); // タップでタイマーを仕切り直すための世代カウンタ
 const startedRef = useRef(false);
 
 useEffect(() => {
+if (!tierReady || loadStartedRef.current) return;
+loadStartedRef.current = true;
 try {
 const rawSet = window.localStorage.getItem(SET_KEY);
 if (rawSet) {
@@ -183,7 +208,7 @@ setProfile({ ...EMPTY_PROFILE, ...parsedProfile });
 }
 setLoaded(true);
 // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+}, [tierReady]);
 
 useEffect(() => {
 if (!loaded) return;
@@ -287,12 +312,12 @@ const editingSituation = editing
 return (
 <>
 {/* 表紙＋スライド: メインビジュアルが時間とともに流れる */}
-<section className="mt-4">
+<section className="flex h-full flex-col pt-3">
 {current && (
 <button
 type="button"
 onClick={advance}
-className="relative block w-full"
+className="relative block min-h-0 w-full flex-1"
 aria-label="次のシーンへ"
 >
 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -300,7 +325,7 @@ aria-label="次のシーンへ"
 key={current.key}
 src={current.imageUrl}
 alt={current.task? current.task.task_name: characterName}
-className="aspect-[3/4] w-full rounded-md object-cover"
+className="absolute inset-0 h-full w-full rounded-md object-cover"
 />
 <span
 className="absolute right-2 top-2 bg-[var(--surface)] px-2 py-0.5 text-[10px]"
@@ -311,7 +336,7 @@ style={{ color: "var(--muted)"}}
 </button>
 )}
 <div
-className="relative mx-3 -mt-8 border bg-[var(--surface)] p-4"
+className="relative mx-3 -mt-8 shrink-0 border bg-[var(--surface)] p-3"
 style={{ borderColor: "var(--text)"}}
 >
 {currentSituation && (
@@ -411,10 +436,31 @@ className="underline"
 </button>
 )}
 </div>
+<div className="mt-3 text-center">
+<button type="button" onClick={() => setPanelOpen(true)} className="underline">
+セット一覧を見る
+</button>
+</div>
 </div>
 </section>
 
-{/* 中身: 時間帯ごとに、選んだタスクだけ（記事風リスト・眺める用） */}
+{/* 中身: 時間帯ごとの記事リストは「一覧」パネル内（ホーム自体は1画面に収める） */}
+<div
+className={panelOpen? "fixed inset-0 z-40 overflow-y-auto": "hidden"}
+style={panelOpen? { background: "var(--bg)" }: undefined}
+>
+<div className="mx-auto w-full max-w-md px-4 pb-12">
+<div className="flex items-baseline justify-between pt-6">
+<p className="text-base font-bold">今日のセット一覧</p>
+<button
+type="button"
+onClick={() => setPanelOpen(false)}
+className="text-xs underline"
+style={{ color: "var(--muted)" }}
+>
+閉じる
+</button>
+</div>
 {visibleSituations.map((situation) => {
 const items = selectedTasks(situation.situation_id);
 const isCurrent = currentSituation?.situation_id === situation.situation_id;
@@ -488,6 +534,8 @@ style={{ color: "var(--muted)"}}
 </section>
 );
 })}
+</div>
+</div>
 
 {/* セット編集ポップアップ（README: デフォルト項目をポップアップから選択） */}
 {editingSituation && (

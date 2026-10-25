@@ -35,7 +35,7 @@ if (!ready || lines.length === 0) return null;
 
 if (!enabled) {
 return (
-<div className="mt-10 text-right">
+<div className="text-right">
 <button
 type="button"
 onClick={() => toggle(true)}
@@ -52,7 +52,7 @@ const joined = lines.join("　／　");
 const duration = Math.max(24, joined.length * 0.45);
 
 return (
-<div className="mt-10">
+<div>
 <style>{`@keyframes enaema-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
 <div
 className="overflow-hidden border-y py-1.5"
