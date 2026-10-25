@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v14.6（タスク名とキャッチを明朝に：display フォントの日本語側を Noto Serif JP で担う）
+// Enaema ホームクライアント部品 v14.7（ヒーローを下げて頭上に余白を作り、題字と顔がぶつからない構図に）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -499,6 +499,7 @@ className="absolute inset-0 h-full w-full"
 src={heroUrl}
 alt=""
 className="absolute inset-0 h-full w-full object-cover object-top"
+style={{ transform: "translateY(48px)" }}
 />
 ): null}
 <span className="pointer-events-none absolute inset-x-0 top-0 block h-32 bg-gradient-to-b from-[#F7EEDD]/80 via-[#F7EEDD]/30 to-transparent" />
