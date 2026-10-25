@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v14.7（ヒーローを下げて頭上に余白を作り、題字と顔がぶつからない構図に）
+// Enaema ホームクライアント部品 v15（表紙を「明るい紙にインクで印刷」に反転：黒い帯を廃し、クリームのフェード＋インクの明朝で世界観に揃える）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -502,7 +502,7 @@ className="absolute inset-0 h-full w-full object-cover object-top"
 style={{ transform: "translateY(48px)" }}
 />
 ): null}
-<span className="pointer-events-none absolute inset-x-0 top-0 block h-32 bg-gradient-to-b from-[#F7EEDD]/80 via-[#F7EEDD]/30 to-transparent" />
+<span className="pointer-events-none absolute inset-x-0 top-0 block h-44 bg-gradient-to-b from-[#F7EEDD]/95 via-[#F7EEDD]/45 to-transparent" />
 <span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-3">
 {coverMeta.weather? (
 <span
@@ -552,15 +552,15 @@ style={{ color: "var(--muted)" }}
 </span>
 </span>
 </span>
-<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black/55 via-black/20 to-transparent px-4 pb-12 pt-16 text-white">
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/55 to-transparent px-4 pb-12 pt-20" style={{ color: "var(--text)" }}>
 <span className="flex items-end justify-between gap-3">
 <span className="block">
 <span
 className="mb-1.5 block text-[17px] italic leading-none"
 style={{
 fontFamily: "var(--font-display)",
-color: "#F2C4C4",
-textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+color: "#B76E79",
+textShadow: "0 0 8px rgba(247,238,221,0.9)",
 }}
 >
 Make today the best day
@@ -577,8 +577,12 @@ setView("stage");
 setSlide(i);
 setCycle((c) => c + 1);
 }}
-className="block text-left text-[27px] font-bold leading-tight text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.45)]"
-style={{ fontFamily: "var(--font-display-jp)" }}
+className={
+i === 0
+? "block text-left text-[30px] font-bold leading-snug [text-shadow:0_0_10px_rgba(247,238,221,0.95),0_0_3px_rgba(247,238,221,0.95)]"
+: "block text-left text-[25px] font-bold leading-snug [text-shadow:0_0_10px_rgba(247,238,221,0.95),0_0_3px_rgba(247,238,221,0.95)]"
+}
+style={{ fontFamily: "var(--font-display-jp)", letterSpacing: "0.04em" }}
 >
 {t.task_name}
 </button>
@@ -587,14 +591,14 @@ style={{ fontFamily: "var(--font-display-jp)" }}
 ): (
 <span
 className="block text-[27px] font-bold leading-tight"
-style={{ fontFamily: "var(--font-display-jp)" }}
+style={{ fontFamily: "var(--font-display-jp)", letterSpacing: "0.04em" }}
 >
 今日のルーチン
 </span>
 )}
 <span
 className="mt-3 block border-b-2 pb-1 text-[15px] font-medium"
-style={{ borderColor: "#EBCB8B", fontFamily: "var(--font-display-jp)" }}
+style={{ borderColor: "#C9A227", fontFamily: "var(--font-display-jp)", letterSpacing: "0.03em" }}
 >
 {currentSituation
 ? `${currentSituation.name}のルーチン、今日も整える。`
@@ -602,7 +606,7 @@ style={{ borderColor: "#EBCB8B", fontFamily: "var(--font-display-jp)" }}
 </span>
 </span>
 {(baseStatus || extraStatus) && (
-<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]">
 {statusRows.map((r) => (
 <span
 key={r.value}
