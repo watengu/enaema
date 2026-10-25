@@ -1,6 +1,6 @@
 "use client";
 
-// Enaema ホームクライアント部品 v15.2（同意フロー：ログイン後に規約同意を確認し、未同意なら特典を止めて同意シートを出す）
+// Enaema ホームクライアント部品 v15.3（初回3ステップ説明：初回だけ自動表示、パネルの「使い方を見る」から再表示可）
 // v11: 表紙カード（ダッシュボード型）を廃し、シーン主役＋字幕＋ストーリーバーに再構成。
 // 操作（新規セット等）はパネルと下部の細い帯に沈める。「眺める」体験を画面の中心に戻す
 // 体験の中心は「操作」ではなく「眺める」: 今の時間帯のシーンがスライドで自動再生される（放置型）
@@ -170,6 +170,22 @@ return (
 );
 }
 
+// 初回説明（3ステップ）。文案を変えるときはここだけ直す
+const ONBOARD_STEPS = [
+{
+title: "ようこそ、Enaemaへ",
+body: "「今日の私を、もっと好きになる。」天気と時間帯に合わせて、今日の美容タスクを一冊の表紙でお届けします。",
+},
+{
+title: "タスクをタップ",
+body: "表紙のタスク名を押すと、キャラクターのシーンが流れます。操作は最小限。眺めているだけで大丈夫です。",
+},
+{
+title: "ステータスを入れる",
+body: "骨格・パーソナルカラーなどを選ぶと、表紙にあなたの情報が載ります。あとからでも変更できます。",
+},
+];
+
 function GlassPill(props: {
 label: string;
 icon: "check" | "list" | "sliders" | "home";
@@ -286,6 +302,9 @@ const [tierReady, setTierReady] = useState(false);
 const [session, setSession] = useState<Session | null>(null);
 const [consentNeeded, setConsentNeeded] = useState(false);
 const [consentOpen, setConsentOpen] = useState(false);
+const [onboardOpen, setOnboardOpen] = useState(false);
+const [onboardStep, setOnboardStep] = useState(0);
+const onboardShownRef = useRef(false);
 const loadStartedRef = useRef(false);
 
 // セッション確認（クライアント側）: 有効なセッション＋規約への同意があれば free に上げる
@@ -319,6 +338,36 @@ return () => {
 cancelled = true;
 };
 }, []);
+
+// 初回だけ自動で出す（同意シートが出ている間は待つ）。閉じたらフラグを立てて二度と出さない
+useEffect(() => {
+if (!tierReady || consentOpen || onboardShownRef.current) return;
+let seen = false;
+try {
+seen = window.localStorage.getItem("enaema.onboarded.v1") === "1";
+} catch {
+seen = true;
+}
+if (!seen) {
+onboardShownRef.current = true;
+setOnboardStep(0);
+setOnboardOpen(true);
+}
+}, [tierReady, consentOpen]);
+
+const closeOnboarding = () => {
+try {
+window.localStorage.setItem("enaema.onboarded.v1", "1");
+} catch {
+// 保存できなくても閉じる
+}
+setOnboardOpen(false);
+};
+
+const openOnboarding = () => {
+setOnboardStep(0);
+setOnboardOpen(true);
+};
 
 const agreeConsent = async (): Promise<boolean> => {
 if (!session) return false;
@@ -799,6 +848,14 @@ style={{ color: "var(--accent)" }}
 </button>
 )}
 </div>
+<button
+type="button"
+onClick={openOnboarding}
+className="mt-2 block text-[11px] underline"
+style={{ color: "var(--muted)" }}
+>
+使い方を見る
+</button>
 <div
 className="mt-4 flex gap-2 border-b pb-4"
 style={{ borderColor: "var(--line)" }}
@@ -1086,6 +1143,62 @@ style={{ borderColor: "var(--text)"}}
 onAgree={agreeConsent}
 onLater={() => setConsentOpen(false)}
 />
+)}
+{onboardOpen && (
+<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+<div
+className="w-full max-w-md border-t-2 bg-[var(--surface)] p-5"
+style={{ borderColor: "var(--text)" }}
+>
+<p
+className="text-[11px] tracking-[0.3em]"
+style={{ color: "var(--muted)" }}
+>
+{onboardStep + 1} / 3
+</p>
+<h3
+className="mt-1 text-base font-bold"
+style={{ fontFamily: "var(--font-display-jp)" }}
+>
+{ONBOARD_STEPS[onboardStep].title}
+</h3>
+<p
+className="mt-2 text-[13px] leading-relaxed"
+style={{ color: "var(--muted)" }}
+>
+{ONBOARD_STEPS[onboardStep].body}
+</p>
+{onboardStep < 2 ? (
+<>
+<button
+type="button"
+onClick={() => setOnboardStep(onboardStep + 1)}
+className="mt-4 w-full rounded-full border py-3 text-sm font-bold"
+style={{ borderColor: "var(--text)" }}
+>
+つぎへ
+</button>
+<button
+type="button"
+onClick={closeOnboarding}
+className="mt-2 w-full py-2 text-xs"
+style={{ color: "var(--muted)" }}
+>
+スキップ
+</button>
+</>
+) : (
+<button
+type="button"
+onClick={closeOnboarding}
+className="mt-4 w-full rounded-full border py-3 text-sm font-bold"
+style={{ borderColor: "var(--text)" }}
+>
+はじめる
+</button>
+)}
+</div>
+</div>
 )}
 </>
 );
