@@ -6,6 +6,10 @@
 //   なければサーバーから渡された天気行（銀座）を使う
 // - v15.11: 開閉で帯の高さが変わらないよう、閉じた状態でも行の箱を同じ寸法で残す
 //   （中身だけ見えなくする）。表紙が開閉で上下に動かないための措置
+// - v15.12: 行に url がある場合はタップでその記事へ飛べるリンクとして表示する
+//   （Girls Concierge の記事などを帯から読めるようにするため）
+
+type TickerItem = { text: string; url?: string | null };
 
 import { useEffect, useState } from "react";
 
@@ -25,10 +29,10 @@ return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 export default function Ticker({
-lines,
+items,
 weatherLines,
 }: {
-lines: string[];
+items: TickerItem[];
 weatherLines?: string[];
 }) {
 const [enabled, setEnabled] = useState(true);
@@ -92,20 +96,24 @@ readLocal();
 }, []);
 
 const effectiveWeather = wx.length > 0 ? wx : (weatherLines ?? []);
-const allLines = [...advice, ...effectiveWeather, ...lines];
+const allItems: TickerItem[] = [
+...advice.map((text) => ({ text })),
+...effectiveWeather.map((text) => ({ text })),
+...items,
+];
 
 useEffect(() => {
-if (!enabled || allLines.length <= 1) return;
+if (!enabled || allItems.length <= 1) return;
 const timer = window.setInterval(() => {
 readLocal();
-setIdx((v) => (v + 1) % allLines.length);
+setIdx((v) => (v + 1) % allItems.length);
 }, 4500);
 return () => window.clearInterval(timer);
-}, [enabled, allLines.length]);
+}, [enabled, allItems.length]);
 
-if (allLines.length === 0) return null;
+if (allItems.length === 0) return null;
 
-const current = allLines[idx % allLines.length];
+const current = allItems[idx % allItems.length];
 
 return (
 <div>
@@ -120,7 +128,19 @@ key={idx}
 className="truncate text-[11px]"
 style={{ color: "var(--muted)", animation: "enaema-fade 0.5s ease" }}
 >
-{current}
+{current.url ? (
+<a
+href={current.url}
+target="_blank"
+rel="noreferrer"
+className="underline decoration-dotted underline-offset-2"
+style={{ color: "var(--muted)" }}
+>
+{current.text} ↗
+</a>
+) : (
+current.text
+)}
 </p>
 ) : (
 <p className="truncate text-[11px]" style={{ visibility: "hidden" }} aria-hidden="true">

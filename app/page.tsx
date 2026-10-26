@@ -65,12 +65,14 @@ return fetchWeatherAt(35.6712, 139.7649, { next: { revalidate: 1800 } });
 }
 
 // テキストロールの editorial 文言（DB の ticker_items）。テーブル未作成・失敗時は空でよい
-async function fetchTickerTexts(): Promise<string[]> {
+// v15.12: url 列も取得する（GC記事などの行はタップで遷移できる）
+type TickerItem = { text: string; url: string | null };
+async function fetchTickerItems(): Promise<TickerItem[]> {
 try {
-const rows = await fetchTable<{ text: string }>(
-"ticker_items?select=text&is_active=eq.true&order=display_order.asc,id.asc"
+const rows = await fetchTable<TickerItem>(
+"ticker_items?select=text,url&is_active=eq.true&order=display_order.asc,id.asc"
 );
-return rows.map((r) => r.text).filter(Boolean);
+return rows.filter((r) => r.text);
 } catch {
 return [];
 }
@@ -98,7 +100,7 @@ let situations: Situation[] = [];
 let tasks: Task[] = [];
 let character: Character | null = null;
 let weather: Weather | null = null;
-let tickerTexts: string[] = [];
+let tickerItems: TickerItem[] = [];
 let loadError = false;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -118,7 +120,7 @@ weather = w;
 } catch {
 loadError = true;
 }
-tickerTexts = await fetchTickerTexts();
+tickerItems = await fetchTickerItems();
 }
 
 const currentKey = currentSituationKeyJST();
@@ -135,7 +137,7 @@ weatherLines.push(
 );
 }
 }
-const tickerLines: string[] = [...tickerTexts];
+const tickerLines: TickerItem[] = [...tickerItems];
 
 return (
 <main
@@ -185,7 +187,7 @@ tomorrow: weather.tomorrow,
 
 {/* Bot テキストロール（表紙の外・ホーム下部の細い帯） */}
 <div className="shrink-0">
-<Ticker lines={tickerLines} weatherLines={weatherLines} />
+<Ticker items={tickerLines} weatherLines={weatherLines} />
 </div>
 
 
