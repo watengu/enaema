@@ -754,14 +754,16 @@ style={{ fontFamily: "var(--font-display)" }}
 Enaema
 </span>
 <span
-className="block whitespace-nowrap text-[10px] tracking-[0.2em]"
-style={{ color: "rgba(43,35,32,0.88)", textShadow: "0 0 6px rgba(247,238,221,0.95)", fontWeight: 500 }}
+className="block text-[10px] leading-[1.7] tracking-[0.14em]"
+style={{ color: "rgba(43,35,32,0.85)", maxWidth: "34vw", marginLeft: "auto", textAlign: "right" }}
 >
-今日の私を、もっと好きになる。
+今日の私を、
+<br />
+もっと好きになる。
 </span>
 </span>
 </span>
-<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/55 to-transparent px-4 pb-14 pt-20" style={{ color: "var(--text)" }}>
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/70 to-transparent px-4 pb-14 pt-20" style={{ color: "var(--text)" }}>
 <span className="flex items-end justify-between gap-3">
 <span className="block">
 <span
@@ -816,23 +818,20 @@ style={{ borderColor: "#B76E79", fontFamily: "var(--font-display-jp)", letterSpa
 : coverCatch(weatherNow, null)}
 </span>
 <span
-className="mt-2 inline-block text-[15px] italic leading-none"
+className="mt-2 block text-[15px] italic leading-none"
 style={{
 fontFamily: "var(--font-display)",
 color: "#B76E79",
 textShadow: "0 0 8px rgba(247,238,221,0.9)",
 transform: "rotate(-5deg)",
 transformOrigin: "left center",
-backgroundColor: "rgba(255,252,246,0.55)",
-padding: "4px 10px",
-borderRadius: 9999,
 }}
 >
 Make today the best day
 </span>
 </span>
 {(baseStatus || extraStatus) && (
-<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]" style={{ backgroundColor: "rgba(255,252,246,0.55)", borderRadius: 12, padding: "6px 10px" }}>
+<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]">
 {statusRows.map((r, i) => (
 <span
 key={r.value}
