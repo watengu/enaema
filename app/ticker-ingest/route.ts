@@ -1,10 +1,12 @@
-// Enaema 帯（ticker_items）取り込み API（v15.12 / v2: 合言葉は Supabase 保管）
+// Enaema 帯（ticker_items）取り込み API（v15.12 / v3: 書き込みは DB 関数経由）
 // 定期ジョブが集めたトレンド行・GC記事行を、旧ローテーション行の無効化と
 // 新規行の insert で差し替えるための受け口。書けるのは ticker_items の
 // kind が 'buzz' / 'gc' の行だけ。
-// 認証: ヘッダ x-ingest-secret が、Supabase の app_config テーブル
-// （key = 'ticker_ingest_secret'、RLS で anon/authenticated からは読めない）に
-// 保存された値と一致すること。照合は service_role 経由でのみ行う。
+// 認証と書き込みは Supabase の関数 rotate_ticker_ingest が担う:
+// ヘッダ x-ingest-secret を、app_config テーブル（key = 'ticker_ingest_secret'、
+// RLS で anon/authenticated からは読めない）の値と関数の中で照合し、
+// 合ったときだけローテーションを実行する。このルート自体は
+// 公開キー（anon）で関数を呼ぶだけで、特権キーは使わない。
 
 type IngestItem = {
   text: string;
@@ -46,42 +48,16 @@ function validateItems(raw: unknown): IngestItem[] | null {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  // 合言葉ヘッダが無いものは常に 401 で閉じる（設定を読む前に判定）
+  // 合言葉ヘッダが無いものは常に 401 で閉じる
   const given = request.headers.get("x-ingest-secret");
   if (!given) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
     return json({ ok: false, error: "config" }, 500);
-  }
-  const restBase = supabaseUrl.replace(/\/$/, "") + "/rest/v1";
-  const readHeaders: Record<string, string> = {
-    apikey: serviceKey,
-    Authorization: "Bearer " + serviceKey,
-    Accept: "application/json",
-  };
-
-  // 期待する合言葉を app_config から読む（service_role のみ読める）
-  const cfgRes = await fetch(
-    restBase + "/app_config?key=eq.ticker_ingest_secret&select=value",
-    { headers: readHeaders }
-  );
-  if (!cfgRes.ok) {
-    return json({ ok: false, error: "config" }, 500);
-  }
-  const cfgRows = (await cfgRes.json()) as Array<{ value?: unknown }>;
-  const expected =
-    Array.isArray(cfgRows) && typeof cfgRows[0]?.value === "string"
-      ? cfgRows[0].value
-      : null;
-  if (!expected) {
-    return json({ ok: false, error: "config" }, 500);
-  }
-  if (given !== expected) {
-    return json({ ok: false, error: "unauthorized" }, 401);
   }
 
   let body: unknown;
@@ -95,40 +71,28 @@ export async function POST(request: Request): Promise<Response> {
     return json({ ok: false, error: "invalid_items" }, 400);
   }
 
-  const headers: Record<string, string> = {
-    apikey: serviceKey,
-    Authorization: "Bearer " + serviceKey,
-    "Content-Type": "application/json",
-    Prefer: "return=minimal",
-  };
-  const tickerBase = restBase + "/ticker_items";
-
-  // (1) 旧ローテーション行（buzz / gc）を無効化
-  const patchRes = await fetch(tickerBase + "?kind=in.(buzz,gc)", {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify({ is_active: false }),
-  });
-  if (!patchRes.ok) {
-    return json({ ok: false, error: "deactivate_failed", status: patchRes.status }, 502);
+  // 合言葉の照合と書き込みは DB 関数の中で行う（-1 = 合言葉不一致）
+  const rpcRes = await fetch(
+    supabaseUrl.replace(/\/$/, "") + "/rest/v1/rpc/rotate_ticker_ingest",
+    {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: "Bearer " + anonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ p_secret: given, p_items: items }),
+    }
+  );
+  if (!rpcRes.ok) {
+    return json({ ok: false, error: "rpc_failed", status: rpcRes.status }, 502);
   }
-
-  // (2) 新規行を insert
-  const rows = items.map((item, i) => ({
-    text: item.text,
-    kind: item.kind,
-    url: item.url,
-    display_order: 100 + i,
-    is_active: true,
-  }));
-  const postRes = await fetch(tickerBase, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(rows),
-  });
-  if (!postRes.ok) {
-    return json({ ok: false, error: "insert_failed", status: postRes.status }, 502);
+  const result = (await rpcRes.json()) as unknown;
+  if (result === -1) {
+    return json({ ok: false, error: "unauthorized" }, 401);
   }
-
-  return json({ ok: true, inserted: items.length }, 200);
+  if (typeof result !== "number" || result < 0) {
+    return json({ ok: false, error: "invalid_items" }, 400);
+  }
+  return json({ ok: true, inserted: result }, 200);
 }
