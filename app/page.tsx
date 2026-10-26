@@ -7,6 +7,7 @@
 import HomeClient, { type Situation, type Task } from "./home-client";
 import Ticker from "./ticker";
 import { type Tier } from "./permissions";
+import { fetchWeatherAt } from "./weather";
 
 type Character = {
 character_id: string;
@@ -57,89 +58,10 @@ return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${w
 }
 
 // WMO weather code → 日本語ラベル
-function weatherLabel(code: number): string {
-if (code === 0 || code === 1) return "晴れ";
-if (code === 2) return "晴れ時々曇り";
-if (code === 3) return "曇り";
-if (code === 45 || code === 48) return "霧";
-if (code >= 51 && code <= 57) return "霧雨";
-if (code === 61 || code === 63 || code === 66 || code === 67) return "雨";
-if (code === 65 || code === 82) return "大雨";
-if (code === 71 || code === 73 || code === 77) return "雪";
-if (code === 75 || code === 85 || code === 86) return "大雪";
-if (code === 80 || code === 81) return "にわか雨";
-if (code >= 95) return "雷雨";
-return "―";
-}
-
-function conditionLine(code: number, max: number): string {
-if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95)
-return "雨対策と湿気ケアを忘れずに";
-if (code >= 71 && code <= 86) return "足元と防寒に気をつけて";
-if (max >= 28) return "暑さと紫外線の対策を";
-if (max >= 23) return "軽やかな装いで過ごしやすい一日";
-if (max >= 17) return "羽織りものがあると安心な一日";
-if (max >= 11) return "暖かめのコーデが安心な一日";
-return "しっかり防寒したい一日";
-}
-
-// 表紙用の短い一言（ボックスに収まる長さ）
-function conditionShort(code: number, max: number): string {
-if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95)
-return "雨対策・湿気ケアを";
-if (code >= 71 && code <= 86) return "足元と防寒に";
-if (max >= 28) return "暑さ・紫外線対策を";
-if (max >= 23) return "軽やかな装いで";
-if (max >= 17) return "羽織りものが安心";
-if (max >= 11) return "暖かめコーデで";
-return "しっかり防寒を";
-}
-
-// 天気アイコンの種類（表紙ボックス用）
-function weatherIconName(code: number): string {
-if (code === 0 || code === 1) return "sun";
-if (code === 2 || code === 3 || code === 45 || code === 48) return "cloud";
-if (code >= 71 && code <= 86) return "snow";
-if (code >= 95) return "storm";
-return "rain";
-}
-
-// 銀座の天気（Open-Meteo、無料・キー不要）。失敗時は null（天気ボックスを出さない）
+// 天気の変換表と取得は app/weather.ts の共通部品を使う（表紙の地域切り替えと共有するため）。
+// サーバー側は既定地域（銀座）を従来どおり取得する。地域連動はクライアント側で行う。
 async function fetchWeather(): Promise<Weather | null> {
-try {
-const url =
-"https://api.open-meteo.com/v1/forecast?latitude=35.6712&longitude=139.7649" +
-"&daily=weather_code,temperature_2m_max,temperature_2m_min" +
-"&current=temperature_2m&timezone=Asia%2FTokyo&forecast_days=2";
-const res = await fetch(url, { next: { revalidate: 1800 } });
-if (!res.ok) return null;
-const j = await res.json();
-const code = Number(j?.daily?.weather_code?.[0]);
-const max = Math.round(Number(j?.daily?.temperature_2m_max?.[0]));
-const min = Math.round(Number(j?.daily?.temperature_2m_min?.[0]));
-if (Number.isNaN(code) || Number.isNaN(max) || Number.isNaN(min))
-return null;
-const nowRaw = Number(j?.current?.temperature_2m);
-const tCode = Number(j?.daily?.weather_code?.[1]);
-const tMax = Math.round(Number(j?.daily?.temperature_2m_max?.[1]));
-const tMin = Math.round(Number(j?.daily?.temperature_2m_min?.[1]));
-const tomorrow =
-Number.isNaN(tCode) || Number.isNaN(tMax) || Number.isNaN(tMin)
-? null
-: { label: weatherLabel(tCode), max: tMax, min: tMin };
-return {
-label: weatherLabel(code),
-max,
-min,
-now: Number.isNaN(nowRaw) ? null : Math.round(nowRaw),
-condition: conditionLine(code, max),
-conditionShort: conditionShort(code, max),
-icon: weatherIconName(code),
-tomorrow,
-};
-} catch {
-return null;
-}
+return fetchWeatherAt(35.6712, 139.7649, { next: { revalidate: 1800 } });
 }
 
 // テキストロールの editorial 文言（DB の ticker_items）。テーブル未作成・失敗時は空でよい

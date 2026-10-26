@@ -18,6 +18,7 @@ canSelectTask,
 type Tier,
 } from "./permissions";
 import { getSession, type Session } from "./auth-client";
+import { REGIONS, fetchWeatherAt, type WeatherData } from "./weather";
 import { checkConsent, recordConsent, ConsentSheet } from "./consent";
 import LoginButton from "./login-button";
 
@@ -442,6 +443,52 @@ const [slide, setSlide] = useState(0);
 const [cycle, setCycle] = useState(0); // タップでタイマーを仕切り直すための世代カウンタ
 const startedRef = useRef(false);
 
+// v15.8: 天気の地域（8ヶ所ピンポイント）と天気ボックスの表示/非表示。端末内保存
+const REGION_KEY = "enaema.region.v1";
+const WEATHERBOX_KEY = "enaema.weatherbox.v1";
+const [regionId, setRegionId] = useState("ginza");
+const [showWeatherBox, setShowWeatherBox] = useState(true);
+const [regionWeather, setRegionWeather] = useState<WeatherData | null>(null);
+const currentRegion = REGIONS.find((r) => r.id === regionId)?? REGIONS[0];
+const weatherNow: CoverWeather =
+regionId === "ginza"? coverMeta.weather: (regionWeather?? coverMeta.weather);
+
+useEffect(() => {
+try {
+const r = window.localStorage.getItem(REGION_KEY);
+if (r && REGIONS.some((x) => x.id === r)) setRegionId(r);
+const b = window.localStorage.getItem(WEATHERBOX_KEY);
+if (b !== null) setShowWeatherBox(b === "1");
+} catch {
+// 読めなければ既定（銀座・表示）
+}
+}, []);
+
+useEffect(() => {
+try {
+window.localStorage.setItem(REGION_KEY, regionId);
+window.localStorage.setItem(WEATHERBOX_KEY, showWeatherBox? "1": "0");
+} catch {
+// 保存できなくても表示はそのまま
+}
+}, [regionId, showWeatherBox]);
+
+useEffect(() => {
+if (regionId === "ginza") {
+setRegionWeather(null);
+return;
+}
+const region = REGIONS.find((x) => x.id === regionId);
+if (!region) return;
+let cancelled = false;
+fetchWeatherAt(region.lat, region.lon).then((w) => {
+if (!cancelled) setRegionWeather(w);
+});
+return () => {
+cancelled = true;
+};
+}, [regionId]);
+
 useEffect(() => {
 if (!tierReady || loadStartedRef.current) return;
 loadStartedRef.current = true;
@@ -586,7 +633,7 @@ const coverTasks = slides.flatMap((s) => (s.task? [s.task]: []));
 const adviceNamesKey = coverTasks.map((t) => t.task_name).join("|");
 useEffect(() => {
 if (!loaded) return;
-const w = coverMeta.weather;
+const w = weatherNow;
 const dayIdx = Math.floor(Date.now() / 86400000);
 const pick = (variants: string[], seed: number) => variants[(dayIdx + seed) % variants.length];
 const lines: string[] = [];
@@ -637,7 +684,7 @@ window.localStorage.setItem("enaema.advice.v1", JSON.stringify(lines.slice(0, 2)
 } catch {
 // 保存できなくても表示はそのまま
 }
-}, [loaded, profile, adviceNamesKey, coverMeta.weather]);
+}, [loaded, profile, adviceNamesKey, weatherNow]);
 
 return (
 <>
@@ -666,23 +713,23 @@ style={{ transform: "translateY(48px)" }}
 ): null}
 <span className="pointer-events-none absolute inset-x-0 top-0 block h-44 bg-gradient-to-b from-[#F7EEDD]/95 via-[#F7EEDD]/45 to-transparent" />
 <span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-3">
-{coverMeta.weather? (
+{showWeatherBox && weatherNow? (
 <span
 className="flex items-start gap-2 px-1 py-1 text-[11px] leading-snug"
 style={{ color: "var(--text)" }}
 >
 <span className="mt-0.5 shrink-0">
-<WeatherIcon name={coverMeta.weather.icon} />
+<WeatherIcon name={weatherNow.icon} />
 </span>
 <span>
 <span className="block font-bold tracking-wider">
-GINZA {coverMeta.weather.max}° / {coverMeta.weather.min}°
-{coverMeta.weather.now !== null && (
-<span className="font-medium">（いま{coverMeta.weather.now}°）</span>
+{currentRegion.en} {weatherNow.max}° / {weatherNow.min}°
+{weatherNow.now !== null && (
+<span className="font-medium">（いま{weatherNow.now}°）</span>
 )}
 </span>
 <span className="block" style={{ color: "var(--muted)" }}>
-{coverMeta.weather.label}・{coverMeta.weather.conditionShort}
+{weatherNow.label}・{weatherNow.conditionShort}
 </span>
 </span>
 </span>
@@ -765,8 +812,8 @@ className="mt-3 block border-b-2 pb-1 text-[15px] font-medium"
 style={{ borderColor: "#B76E79", fontFamily: "var(--font-display-jp)", letterSpacing: "0.03em" }}
 >
 {currentSituation
-? coverCatch(coverMeta.weather, currentSituation.name)
-: coverCatch(coverMeta.weather, null)}
+? coverCatch(weatherNow, currentSituation.name)
+: coverCatch(weatherNow, null)}
 </span>
 <span
 className="mt-2 inline-block text-[15px] italic leading-none"
@@ -1219,6 +1266,52 @@ selected
 </div>
 </div>
 ))}
+<div className="mt-4">
+<p className="text-sm font-bold">天気の地域</p>
+<div className="mt-2 flex flex-wrap gap-2">
+{REGIONS.map((r) => {
+const selected = regionId === r.id;
+return (
+<button
+key={r.id}
+type="button"
+onClick={() => setRegionId(r.id)}
+className="rounded-full border px-3.5 py-1.5 text-[13px]"
+style={
+selected
+? { borderColor: "var(--accent)", color: "var(--accent)", fontWeight: 700, background: "rgba(166,39,43,0.06)" }
+: { borderColor: "var(--line)", color: "var(--muted)" }
+}
+>
+{r.name}
+</button>
+);
+})}
+</div>
+</div>
+<div className="mt-4">
+<p className="text-sm font-bold">天気ボックス</p>
+<div className="mt-2 flex flex-wrap gap-2">
+{([true, false] as const).map((v) => {
+const selected = showWeatherBox === v;
+return (
+<button
+key={String(v)}
+type="button"
+onClick={() => setShowWeatherBox(v)}
+className="rounded-full border px-3.5 py-1.5 text-[13px]"
+style={
+selected
+? { borderColor: "var(--accent)", color: "var(--accent)", fontWeight: 700, background: "rgba(166,39,43,0.06)" }
+: { borderColor: "var(--line)", color: "var(--muted)" }
+}
+>
+{v? "表示": "非表示"}
+</button>
+);
+})}
+</div>
+</div>
 <button
 type="button"
 onClick={() => setEditingProfile(false)}
