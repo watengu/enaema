@@ -580,6 +580,65 @@ const editingSituation = editing
 
 const coverTasks = slides.flatMap((s) => (s.task? [s.task]: []));
 
+// v15.7: 「ずれ」があるときだけ、ずれを踏まえたひとことをロール用に端末内へ渡す。
+// セット自体はユーザーの選択なので変えない。パターンは 肌×天気 の組み合わせで決め、
+// 文案は日替わりで回して同じ文が続かないようにする。ずれがない日は何も渡さない。
+const adviceNamesKey = coverTasks.map((t) => t.task_name).join("|");
+useEffect(() => {
+if (!loaded) return;
+const w = coverMeta.weather;
+const dayIdx = Math.floor(Date.now() / 86400000);
+const pick = (variants: string[], seed: number) => variants[(dayIdx + seed) % variants.length];
+const lines: string[] = [];
+if (w) {
+const rainy = w.icon === "rain" || w.icon === "storm";
+const dryClear = (w.icon === "sun" || w.icon === "cloud") && w.max <= 15;
+const hotHumid = rainy || w.max >= 26;
+if (profile.skin === "乾燥肌" && rainy) {
+lines.push(pick([
+"今日は雨で皮脂対策の日。乾燥肌なので、あぶらとりのあとは保湿ミストを",
+"雨の日は湿気ケアが主役。乾燥肌のあなたは、仕上げに保湿をひと足し",
+"皮脂対策の日でも、乾燥肌は落としすぎ注意。うるおいは別で足して",
+], 1));
+} else if (profile.skin === "乾燥肌" && dryClear) {
+lines.push(pick([
+"空気が乾く日。乾燥肌は保湿を「量より回数」で重ねて",
+"晴れても油断大敵。乾燥肌の日は、朝の保湿をいつもより丁寧に",
+"乾いた風の日。メイク前の保湿で、夕方のカサつきを先回り",
+], 2));
+} else if (profile.skin === "脂性肌" && hotHumid) {
+lines.push(pick([
+"皮脂が出やすい日。落とすケアのあとも、薄い保湿でフタをして",
+"湿気でテカリやすい日。あぶらとりは優しく1枚、押し当てずに",
+"暑さと湿気の日。さっぱり仕上げでも、保湿ゼロにはしないで",
+], 3));
+} else if (profile.skin === "脂性肌" && dryClear) {
+lines.push(pick([
+"脂性肌でも、乾く季節は乾燥します。落としすぎは逆に皮脂を呼びます",
+"冬の晴れの日。脂性肌こそ、洗いすぎ注意でやさしく落として",
+"皮脂が気になる日でも、乾燥する日は保湿を抜かないで",
+], 4));
+}
+}
+if (lines.length < 2 && profile.skin === "乾燥肌" && /皮脂|あぶらとり|テカリ/.test(adviceNamesKey)) {
+lines.push(pick([
+"今日のセットは皮脂対策寄り。乾燥肌なので、あぶらとりのあとは保湿ミストを",
+"皮脂ケアの日でも、乾燥肌は仕上げのうるおいを忘れずに",
+], 5));
+}
+if (lines.length < 2 && profile.skin === "敏感肌" && /スクラブ|ピーリング/.test(adviceNamesKey)) {
+lines.push(pick([
+"今日のセットに強いケアが入っています。敏感肌の日は、お休みしても大丈夫",
+"敏感肌の日は攻めのケアは控えめに。やさしい保湿を中心に",
+], 6));
+}
+try {
+window.localStorage.setItem("enaema.advice.v1", JSON.stringify(lines.slice(0, 2)));
+} catch {
+// 保存できなくても表示はそのまま
+}
+}, [loaded, profile, adviceNamesKey, coverMeta.weather]);
+
 return (
 <>
 {/* 舞台: シーンが主役。字幕とストーリーバーだけを重ね、操作は下の細い帯とパネルに沈める */}
@@ -648,8 +707,8 @@ style={{ fontFamily: "var(--font-display)" }}
 Enaema
 </span>
 <span
-className="block whitespace-nowrap text-[9px] tracking-[0.2em]"
-style={{ color: "var(--muted)" }}
+className="block whitespace-nowrap text-[10px] tracking-[0.2em]"
+style={{ color: "rgba(43,35,32,0.88)", textShadow: "0 0 6px rgba(247,238,221,0.95)", fontWeight: 500 }}
 >
 今日の私を、もっと好きになる。
 </span>
@@ -710,20 +769,23 @@ style={{ borderColor: "#B76E79", fontFamily: "var(--font-display-jp)", letterSpa
 : coverCatch(coverMeta.weather, null)}
 </span>
 <span
-className="mt-2 block text-[15px] italic leading-none"
+className="mt-2 inline-block text-[15px] italic leading-none"
 style={{
 fontFamily: "var(--font-display)",
 color: "#B76E79",
 textShadow: "0 0 8px rgba(247,238,221,0.9)",
 transform: "rotate(-5deg)",
 transformOrigin: "left center",
+backgroundColor: "rgba(255,252,246,0.55)",
+padding: "4px 10px",
+borderRadius: 9999,
 }}
 >
 Make today the best day
 </span>
 </span>
 {(baseStatus || extraStatus) && (
-<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]">
+<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]" style={{ backgroundColor: "rgba(255,252,246,0.55)", borderRadius: 12, padding: "6px 10px" }}>
 {statusRows.map((r, i) => (
 <span
 key={r.value}

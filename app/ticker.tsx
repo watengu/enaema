@@ -33,15 +33,37 @@ window.localStorage.setItem(TICKER_KEY, next? "on": "off");
 
 const [idx, setIdx] = useState(0);
 
+// v15.7: 端末内のアドバイス（ステータスとセットの不一致など）を先頭に混ぜて流す
+const [advice, setAdvice] = useState<string[]>([]);
+const readAdvice = () => {
+try {
+const raw = window.localStorage.getItem("enaema.advice.v1");
+const parsed: unknown = raw? JSON.parse(raw): [];
+if (Array.isArray(parsed)) {
+const next = parsed.filter((x): x is string => typeof x === "string");
+setAdvice((prev) => (JSON.stringify(prev) === JSON.stringify(next)? prev: next));
+}
+} catch {
+// 読めなければアドバイスなしで流す
+}
+};
+
 useEffect(() => {
-if (!enabled || lines.length <= 1) return;
+readAdvice();
+}, []);
+
+const allLines = [...advice, ...lines];
+
+useEffect(() => {
+if (!enabled || allLines.length <= 1) return;
 const timer = window.setInterval(() => {
-setIdx((v) => (v + 1) % lines.length);
+readAdvice();
+setIdx((v) => (v + 1) % allLines.length);
 }, 4500);
 return () => window.clearInterval(timer);
-}, [enabled, lines.length]);
+}, [enabled, allLines.length]);
 
-if (!ready || lines.length === 0) return null;
+if (!ready || allLines.length === 0) return null;
 
 if (!enabled) {
 return (
@@ -52,7 +74,7 @@ onClick={() => toggle(true)}
 className="text-[10px]"
 style={{ color: "var(--muted)"}}
 >
-ニュースロールを出す
+ひとことを出す
 </button>
 </div>
 );
@@ -70,7 +92,7 @@ key={idx}
 className="truncate text-[11px]"
 style={{ color: "var(--muted)", animation: "enaema-fade 0.5s ease" }}
 >
-{lines[idx % lines.length]}
+{allLines[idx % allLines.length]}
 </p>
 </div>
 <div className="mt-1 text-right">
@@ -80,7 +102,7 @@ onClick={() => toggle(false)}
 className="text-[10px]"
 style={{ color: "var(--muted)"}}
 >
-ロールを隠す
+ひとことを隠す
 </button>
 </div>
 </div>
