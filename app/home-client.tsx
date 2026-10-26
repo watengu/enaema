@@ -174,15 +174,15 @@ return (
 const ONBOARD_STEPS = [
 {
 title: "ようこそ、Enaemaへ",
-body: "「今日の私を、もっと好きになる。」天気と時間帯に合わせて、今日の美容タスクを一冊の表紙でお届けします。",
+body: "「今日の私を、もっと好きになる。」天気と​時間帯に​合わせて、​今日の​美容タスクを​一冊の​表紙で​お届けします。",
 },
 {
 title: "タスクをタップ",
-body: "表紙のタスク名を押すと、キャラクターのシーンが流れます。操作は最小限。眺めているだけで大丈夫です。",
+body: "表紙の​タスク名を​押すと、​キャラクターの​シーンが​流れます。​操作は​最小限。​眺めているだけで​大丈夫です。",
 },
 {
 title: "ステータスを入れる",
-body: "骨格・パーソナルカラーなどを選ぶと、表紙にあなたの情報が載ります。あとからでも変更できます。",
+body: "骨格・パーソナルカラーなどを​選ぶと、​表紙に​あなたの​情報が​載ります。​あとからでも​変更できます。",
 },
 ];
 
@@ -526,12 +526,12 @@ setSlide(sceneIdx);
 
 // 自動再生（6秒ごと）。タップで次へ＋タイマー仕切り直し
 useEffect(() => {
-if (slides.length <= 1) return;
+if (slides.length <= 1 || onboardOpen || consentOpen) return;
 const id = window.setInterval(() => {
 setSlide((prev) => (prev + 1) % slides.length);
 }, 6000);
 return () => window.clearInterval(id);
-}, [slides.length, cycle]);
+}, [slides.length, cycle, onboardOpen, consentOpen]);
 
 const advance = () => {
 if (slides.length <= 1) return;
@@ -1193,7 +1193,7 @@ style={{ fontFamily: "var(--font-display-jp)" }}
 {ONBOARD_STEPS[onboardStep].title}
 </h3>
 <p
-className="mt-2 text-[13px] leading-relaxed"
+className="mt-2 text-[13px] leading-relaxed [word-break:auto-phrase]"
 style={{ color: "var(--muted)" }}
 >
 {ONBOARD_STEPS[onboardStep].body}
@@ -1218,14 +1218,27 @@ style={{ color: "var(--muted)" }}
 </button>
 </>
 ) : (
+<>
 <button
 type="button"
-onClick={closeOnboarding}
+onClick={() => {
+closeOnboarding();
+setEditingProfile(true);
+}}
 className="mt-4 w-full rounded-full border py-3 text-sm font-bold"
 style={{ borderColor: "var(--text)" }}
 >
-はじめる
+ステータスを入れる
 </button>
+<button
+type="button"
+onClick={closeOnboarding}
+className="mt-2 w-full py-2 text-xs"
+style={{ color: "var(--muted)" }}
+>
+あとで
+</button>
+</>
 )}
 </div>
 </div>
