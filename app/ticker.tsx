@@ -74,7 +74,7 @@ onClick={() => toggle(true)}
 className="text-[10px]"
 style={{ color: "var(--muted)"}}
 >
-ひとことを出す
+ひとことを開く
 </button>
 </div>
 );
@@ -102,7 +102,7 @@ onClick={() => toggle(false)}
 className="text-[10px]"
 style={{ color: "var(--muted)"}}
 >
-ひとことを隠す
+ひとことを閉じる
 </button>
 </div>
 </div>
