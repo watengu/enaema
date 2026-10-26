@@ -58,6 +58,7 @@ now: number | null;
 condition: string;
 conditionShort: string;
 icon: string;
+tomorrow: { label: string; max: number; min: number } | null;
 } | null;
 };
 };
@@ -296,6 +297,7 @@ now: number | null;
 condition: string;
 conditionShort: string;
 icon: string;
+tomorrow: { label: string; max: number; min: number } | null;
 } | null;
 
 // 表紙のキャッチは「今日の条件で変わる文言だけ」という原則に従い、天気で出し分ける
@@ -488,6 +490,37 @@ return () => {
 cancelled = true;
 };
 }, [regionId]);
+
+// v15.11: 帯の天気行も地域に合わせる。いまの地域の天気（今日＋明日）をテキストロール用に
+// 端末内へ渡す（ticker がサーバーの銀座行より優先して流す）。日付が変わった行は ticker 側で捨てる
+useEffect(() => {
+const src = regionId === "ginza" ? coverMeta.weather : regionWeather;
+if (!src) return;
+const wxLines = [
+`${currentRegion.name}の天気 ― ${src.label}　最高${src.max}℃／最低${src.min}℃`,
+];
+if (src.tomorrow) {
+wxLines.push(
+`明日の${currentRegion.name} ― ${src.tomorrow.label}　最高${src.tomorrow.max}℃／最低${src.tomorrow.min}℃`
+);
+}
+try {
+const parts = new Intl.DateTimeFormat("en-US", {
+timeZone: "Asia/Tokyo",
+year: "numeric",
+month: "2-digit",
+day: "2-digit",
+}).formatToParts(new Date());
+const getPart = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+const d = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+window.localStorage.setItem(
+"enaema.wxlines.v1",
+JSON.stringify({ d, lines: wxLines })
+);
+} catch {
+// 保存できなくても表示はそのまま
+}
+}, [regionId, regionWeather, coverMeta.weather, currentRegion.name]);
 
 useEffect(() => {
 if (!tierReady || loadStartedRef.current) return;

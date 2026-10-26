@@ -123,18 +123,19 @@ tickerTexts = await fetchTickerTexts();
 
 const currentKey = currentSituationKeyJST();
 
-const tickerLines: string[] = [];
+// v15.11: 天気行は editorial と分けて渡す（クライアント側に地域連動の天気行があれば Ticker がそちらを優先する）
+const weatherLines: string[] = [];
 if (weather) {
-tickerLines.push(
+weatherLines.push(
 `銀座の天気 ― ${weather.label}　最高${weather.max}℃／最低${weather.min}℃`
 );
 if (weather.tomorrow) {
-tickerLines.push(
+weatherLines.push(
 `明日の銀座 ― ${weather.tomorrow.label}　最高${weather.tomorrow.max}℃／最低${weather.tomorrow.min}℃`
 );
 }
 }
-tickerLines.push(...tickerTexts);
+const tickerLines: string[] = [...tickerTexts];
 
 return (
 <main
@@ -174,6 +175,7 @@ now: weather.now,
 condition: weather.condition,
 conditionShort: weather.conditionShort,
 icon: weather.icon,
+tomorrow: weather.tomorrow,
 }
 : null,
 }}
@@ -183,7 +185,7 @@ icon: weather.icon,
 
 {/* Bot テキストロール（表紙の外・ホーム下部の細い帯） */}
 <div className="shrink-0">
-<Ticker lines={tickerLines} />
+<Ticker lines={tickerLines} weatherLines={weatherLines} />
 </div>
 
 
