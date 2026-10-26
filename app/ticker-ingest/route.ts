@@ -1,8 +1,10 @@
-// Enaema 帯（ticker_items）取り込み API（v15.12）
+// Enaema 帯（ticker_items）取り込み API（v15.12 / v2: 合言葉は Supabase 保管）
 // 定期ジョブが集めたトレンド行・GC記事行を、旧ローテーション行の無効化と
 // 新規行の insert で差し替えるための受け口。書けるのは ticker_items の
-// kind が 'buzz' / 'gc' の行だけで、service_role キーもこのルートの中だけに閉じる。
-// 認証: ヘッダ x-ingest-secret が環境変数 TICKER_INGEST_SECRET と一致すること。
+// kind が 'buzz' / 'gc' の行だけ。
+// 認証: ヘッダ x-ingest-secret が、Supabase の app_config テーブル
+// （key = 'ticker_ingest_secret'、RLS で anon/authenticated からは読めない）に
+// 保存された値と一致すること。照合は service_role 経由でのみ行う。
 
 type IngestItem = {
   text: string;
@@ -44,10 +46,9 @@ function validateItems(raw: unknown): IngestItem[] | null {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  // 認証（設定不備より先に判定し、シークレットなしは常に 401 で閉じる）
-  const expected = process.env.TICKER_INGEST_SECRET;
+  // 合言葉ヘッダが無いものは常に 401 で閉じる（設定を読む前に判定）
   const given = request.headers.get("x-ingest-secret");
-  if (!expected || !given || given !== expected) {
+  if (!given) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
 
@@ -55,6 +56,32 @@ export async function POST(request: Request): Promise<Response> {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) {
     return json({ ok: false, error: "config" }, 500);
+  }
+  const restBase = supabaseUrl.replace(/\/$/, "") + "/rest/v1";
+  const readHeaders: Record<string, string> = {
+    apikey: serviceKey,
+    Authorization: "Bearer " + serviceKey,
+    Accept: "application/json",
+  };
+
+  // 期待する合言葉を app_config から読む（service_role のみ読める）
+  const cfgRes = await fetch(
+    restBase + "/app_config?key=eq.ticker_ingest_secret&select=value",
+    { headers: readHeaders }
+  );
+  if (!cfgRes.ok) {
+    return json({ ok: false, error: "config" }, 500);
+  }
+  const cfgRows = (await cfgRes.json()) as Array<{ value?: unknown }>;
+  const expected =
+    Array.isArray(cfgRows) && typeof cfgRows[0]?.value === "string"
+      ? cfgRows[0].value
+      : null;
+  if (!expected) {
+    return json({ ok: false, error: "config" }, 500);
+  }
+  if (given !== expected) {
+    return json({ ok: false, error: "unauthorized" }, 401);
   }
 
   let body: unknown;
@@ -74,10 +101,10 @@ export async function POST(request: Request): Promise<Response> {
     "Content-Type": "application/json",
     Prefer: "return=minimal",
   };
-  const restBase = supabaseUrl.replace(/\/$/, "") + "/rest/v1/ticker_items";
+  const tickerBase = restBase + "/ticker_items";
 
   // (1) 旧ローテーション行（buzz / gc）を無効化
-  const patchRes = await fetch(restBase + "?kind=in.(buzz,gc)", {
+  const patchRes = await fetch(tickerBase + "?kind=in.(buzz,gc)", {
     method: "PATCH",
     headers,
     body: JSON.stringify({ is_active: false }),
@@ -94,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
     display_order: 100 + i,
     is_active: true,
   }));
-  const postRes = await fetch(restBase, {
+  const postRes = await fetch(tickerBase, {
     method: "POST",
     headers,
     body: JSON.stringify(rows),
