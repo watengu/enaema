@@ -58,6 +58,8 @@ now: number | null;
 condition: string;
 conditionShort: string;
 icon: string;
+uvMax?: number | null;
+humidityDay?: number | null;
 tomorrow: { label: string; max: number; min: number } | null;
 } | null;
 };
@@ -297,6 +299,8 @@ now: number | null;
 condition: string;
 conditionShort: string;
 icon: string;
+uvMax?: number | null;
+humidityDay?: number | null;
 tomorrow: { label: string; max: number; min: number } | null;
 } | null;
 
@@ -672,7 +676,11 @@ const pick = (variants: string[], seed: number) => variants[(dayIdx + seed) % va
 const lines: string[] = [];
 if (w) {
 const rainy = w.icon === "rain" || w.icon === "storm";
-const dryClear = (w.icon === "sun" || w.icon === "cloud") && w.max <= 15;
+// 乾燥判定は湿度（weather.ts の humidityDay）に一元化する。取得できない場合のみ旧来の代用式に落とす
+const dryClear =
+w.humidityDay !== null && w.humidityDay !== undefined
+? w.humidityDay <= 40
+: (w.icon === "sun" || w.icon === "cloud") && w.max <= 15;
 const hotHumid = rainy || w.max >= 26;
 if (profile.skin === "乾燥肌" && rainy) {
 lines.push(pick([

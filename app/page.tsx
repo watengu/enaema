@@ -27,6 +27,8 @@ now: number | null;
 condition: string;
 conditionShort: string;
 icon: string;
+uvMax: number | null;
+humidityDay: number | null;
 tomorrow: DayWeather | null;
 };
 
@@ -177,6 +179,8 @@ now: weather.now,
 condition: weather.condition,
 conditionShort: weather.conditionShort,
 icon: weather.icon,
+uvMax: weather.uvMax,
+humidityDay: weather.humidityDay,
 tomorrow: weather.tomorrow,
 }
 : null,

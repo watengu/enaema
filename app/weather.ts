@@ -9,6 +9,8 @@ now: number | null;
 condition: string;
 conditionShort: string;
 icon: string;
+uvMax: number | null;
+humidityDay: number | null;
 tomorrow: { label: string; max: number; min: number } | null;
 };
 
@@ -80,7 +82,8 @@ init?: object,
 try {
 const url =
 "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
-"&daily=weather_code,temperature_2m_max,temperature_2m_min" +
+"&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max" +
+"&hourly=relative_humidity_2m" +
 "&current=temperature_2m&timezone=Asia%2FTokyo&forecast_days=2";
 const res = await fetch(url, init as RequestInit | undefined);
 if (!res.ok) return null;
@@ -98,6 +101,27 @@ const tomorrow =
 Number.isNaN(tCode) || Number.isNaN(tMax) || Number.isNaN(tMin)
 ? null
 : { label: weatherLabel(tCode), max: tMax, min: tMin };
+// UV（当日最大）と日中（9–18時）の平均湿度。取れない場合は null（判定側は従来式にフォールバック）
+const uvRaw = Number(j?.daily?.uv_index_max?.[0]);
+const uvMax = Number.isNaN(uvRaw) ? null : Math.round(uvRaw * 10) / 10;
+let humidityDay: number | null = null;
+const hTimes: unknown[] = Array.isArray(j?.hourly?.time) ? j.hourly.time : [];
+const hVals: unknown[] = Array.isArray(j?.hourly?.relative_humidity_2m)
+? j.hourly.relative_humidity_2m
+: [];
+if (hTimes.length > 0 && hTimes.length === hVals.length) {
+const todayStr = String(hTimes[0]).slice(0, 10);
+const picks: number[] = [];
+for (let i = 0; i < hTimes.length; i++) {
+const t = String(hTimes[i]);
+if (!t.startsWith(todayStr)) continue;
+const hour = Number(t.slice(11, 13));
+const v = Number(hVals[i]);
+if (hour >= 9 && hour < 18 && !Number.isNaN(v)) picks.push(v);
+}
+if (picks.length >= 3)
+humidityDay = Math.round(picks.reduce((a, b) => a + b, 0) / picks.length);
+}
 return {
 label: weatherLabel(code),
 max,
@@ -106,6 +130,8 @@ now: Number.isNaN(nowRaw) ? null : Math.round(nowRaw),
 condition: conditionLine(code, max),
 conditionShort: weatherConditionShort(code, max),
 icon: weatherIconName(code),
+uvMax,
+humidityDay,
 tomorrow,
 };
 } catch {
