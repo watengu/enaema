@@ -176,7 +176,7 @@ return (
 const ONBOARD_STEPS = [
 {
 title: "ようこそ、Enaemaへ",
-body: "Enaemaは、天気と時間帯に合わせて、その日の美容タスクを案内するアプリです。毎日のケアの順番に迷わないための、あなたの表紙です。",
+body: "Enaemaは、時間帯に合わせて、その日の美容タスクを案内するアプリです。天気に合わせたケアのひとことも添えて、毎日のケアの順番に迷わないための、あなたの表紙です。",
 },
 {
 title: "やり方は「やって、タップ」",
@@ -798,7 +798,7 @@ style={{ color: "rgba(43,35,32,0.85)", maxWidth: "34vw", marginLeft: "auto", tex
 className="mt-1.5 block whitespace-nowrap text-[10px] tracking-[0.12em]"
 style={{ color: "rgba(43,35,32,0.66)" }}
 >
-天気で変わる、毎日の美容タスク
+ケアの順番、もう迷わない
 </span>
 </span>
 </span>
