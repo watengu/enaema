@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 const TICKER_KEY = "enaema.ticker.v1";
 const ADVICE_KEY = "enaema.advice.v1";
 const WX_KEY = "enaema.wxlines.v1";
+const LUCKY_KEY = "enaema.lucky.v1";
 
 function todayJST(): string {
 const parts = new Intl.DateTimeFormat("en-US", {
@@ -58,6 +59,7 @@ const [idx, setIdx] = useState(0);
 
 // 端末内のアドバイスと地域連動の天気行を読む（マウント時＋切替のたび）
 const [advice, setAdvice] = useState<string[]>([]);
+const [lucky, setLucky] = useState<string[]>([]);
 const [wx, setWx] = useState<string[]>([]);
 const readLocal = () => {
 try {
@@ -69,6 +71,16 @@ setAdvice((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next
 }
 } catch {
 // 読めなければアドバイスなしで流す
+}
+try {
+const raw = window.localStorage.getItem(LUCKY_KEY);
+const parsed: unknown = raw ? JSON.parse(raw) : [];
+if (Array.isArray(parsed)) {
+const next = parsed.filter((x): x is string => typeof x === "string").slice(0, 1);
+setLucky((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+}
+} catch {
+// 読めなければラッキーバフなしで流す
 }
 try {
 const raw = window.localStorage.getItem(WX_KEY);
@@ -98,6 +110,7 @@ readLocal();
 const effectiveWeather = wx.length > 0 ? wx : (weatherLines ?? []);
 const allItems: TickerItem[] = [
 ...advice.map((text) => ({ text })),
+...lucky.map((text) => ({ text })),
 ...effectiveWeather.map((text) => ({ text })),
 ...items,
 ];

@@ -75,9 +75,12 @@ export type Profile = {
   face: string;
   skin: string;
   hair: string;
+  sign: string;
 };
 
-const EMPTY_PROFILE: Profile = { bone: "", pc: "", face: "", skin: "", hair: "" };
+const EMPTY_PROFILE: Profile = { bone: "", pc: "", face: "", skin: "", hair: "", sign: "" };
+
+const SIGNS = ["牡羊座", "牡牛座", "双子座", "蟹座", "獅子座", "乙女座", "天秤座", "蠍座", "射手座", "山羊座", "水瓶座", "魚座"];
 
 const PROFILE_FIELDS: {
   key: keyof Profile;
@@ -90,7 +93,43 @@ const PROFILE_FIELDS: {
   { key: "face", label: "顔タイプ", options: ["キュート", "アクティブキュート", "フレッシュ", "ソフトエレガント", "フェミニン", "エレガント", "クールカジュアル", "クール"], loginOnly: true },
   { key: "skin", label: "肌タイプ", options: ["普通肌", "乾燥肌", "脂性肌", "混合肌", "敏感肌"], loginOnly: true },
   { key: "hair", label: "髪型", options: ["ショート", "ショートボブ", "ボブ", "ミディアム", "セミロング", "ロング"], loginOnly: true },
+  { key: "sign", label: "星座（今日のラッキーバフ用）", options: SIGNS, loginOnly: false },
 ];
+
+// 診断×印象×占い（エナエマ拡張）最小案 2026-10-31: 今日のラッキーバフ（占い）
+// - 占いは娯楽として、診断・天気のアドバイスとは別の行で出す（ラベル分離）
+// - 色はパーソナルカラーの範囲に寄せ、未設定なら季節の色から出す。診断・天気を上書きしない
+// - 同じ日は同じ結果になるよう、日付と星座で固定する（引き直しなし）
+const LUCKY_KEY = "enaema.lucky.v1";
+const LUCKY_COLORS_BY_PC: Record<string, string[]> = {
+  "イエベ春": ["コーラルピンク", "ピーチオレンジ", "ライトキャメル", "イエローゴールド", "ターコイズ", "若草グリーン"],
+  "ブルベ夏": ["ローズピンク", "ラベンダー", "ソフトブルー", "ミントグリーン", "グレージュ", "パールホワイト"],
+  "イエベ秋": ["テラコッタ", "マスタード", "オリーブ", "バーガンディ", "ブロンズ", "ディープオレンジ"],
+  "ブルベ冬": ["ロイヤルブルー", "ワインレッド", "フューシャピンク", "エメラルド", "シルバーグレー", "クリアレッド"],
+};
+const LUCKY_COLORS_BY_SEASON: Record<string, string[]> = {
+  spring: ["さくらピンク", "ミモザイエロー", "若草グリーン", "スカイブルー", "ピーチ", "ライラック"],
+  summer: ["コーラル", "ターコイズ", "ホワイト", "レモンイエロー", "アクアブルー", "ひまわりイエロー"],
+  autumn: ["ボルドー", "マスタード", "テラコッタ", "オリーブ", "キャメル", "プラム"],
+  winter: ["ワインレッド", "ロイヤルブルー", "シルバーグレー", "フューシャピンク", "エメラルド", "アイスブルー"],
+};
+const LUCKY_ITEMS: { name: string; tail: string }[] = [
+  { name: "リップ", tail: "をひと塗り" },
+  { name: "ネイル", tail: "を指先に" },
+  { name: "チーク", tail: "をふわりと" },
+  { name: "アイシャドウ", tail: "をまぶたにひと色" },
+  { name: "スカーフ", tail: "を首元に" },
+  { name: "ポーチ", tail: "を持ち歩いて" },
+];
+function luckySeasonKeyJST(): string {
+  const month = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Tokyo", month: "numeric" }).format(new Date())
+  );
+  if (month >= 3 && month <= 5) return "spring";
+  if (month >= 6 && month <= 8) return "summer";
+  if (month >= 9 && month <= 11) return "autumn";
+  return "winter";
+}
 
 // 時間帯の窓（JST・分）: 朝 5:00–11:00 / 昼 11:00–17:00 / 晩 17:00–22:00 / 寝る前 22:00–29:00(=翌5:00)
 const WINDOWS: Record<string, { start: number; end: number}> = {
@@ -726,6 +765,28 @@ window.localStorage.setItem("enaema.advice.v1", JSON.stringify(lines.slice(0, 2)
 // 保存できなくても表示はそのまま
 }
 }, [loaded, profile, adviceNamesKey, weatherNow]);
+
+  // 今日のラッキーバフ（占い）を端末内へ渡す。Ticker がアドバイスの次の行として流す
+  useEffect(() => {
+    if (!loaded) return;
+    const dayIdx = Math.floor(Date.now() / 86400000);
+    const signIdx = profile.sign ? SIGNS.indexOf(profile.sign) : 0;
+    const seasonPalette = LUCKY_COLORS_BY_SEASON[luckySeasonKeyJST()];
+    const palette =
+      profile.pc && LUCKY_COLORS_BY_PC[profile.pc]
+        ? LUCKY_COLORS_BY_PC[profile.pc]
+        : seasonPalette;
+    const color = palette[(dayIdx + signIdx * 2) % palette.length];
+    const item = LUCKY_ITEMS[(dayIdx * 2 + signIdx) % LUCKY_ITEMS.length];
+    const line = profile.sign
+      ? `${profile.sign}のラッキーバフ（占い）｜${color}の${item.name}${item.tail}`
+      : `今日のラッキーバフ（占い）｜${color}の${item.name}${item.tail}`;
+    try {
+      window.localStorage.setItem(LUCKY_KEY, JSON.stringify([line]));
+    } catch {
+      // 保存できなくても画面は動かす
+    }
+  }, [loaded, profile]);
 
 return (
 <>
