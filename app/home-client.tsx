@@ -17,7 +17,7 @@ canSeeSituation,
 canSelectTask,
 type Tier,
 } from "./permissions";
-import { getSession, type Session } from "./auth-client";
+import { getSession, signInWithGoogle, type Session } from "./auth-client";
 import { REGIONS, fetchWeatherAt, type WeatherData } from "./weather";
 import { checkConsent, recordConsent, ConsentSheet } from "./consent";
 import LoginButton from "./login-button";
@@ -869,6 +869,12 @@ style={{ color: "rgba(43,35,32,0.66)" }}
 >
 ケアの順番、もう迷わない
 </span>
+<span
+className="mt-1 block whitespace-nowrap text-[10px] tracking-[0.12em]"
+style={{ color: "rgba(43,35,32,0.66)" }}
+>
+天気と時間帯で変わる美容タスク
+</span>
 </span>
 </span>
 <span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/70 to-transparent px-4 pb-14 pt-20" style={{ color: "var(--text)" }}>
@@ -962,6 +968,16 @@ i > 0
 </span>
 </span>
 <span className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 px-4 pb-3.5">
+{tierReady && tier === "no_login" && (
+<button
+type="button"
+onClick={signInWithGoogle}
+className="pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-full py-1.5 pl-3 pr-3.5 text-[11px] font-bold shadow-sm transition active:scale-95"
+style={{ background: "rgba(255,255,255,0.92)", color: "var(--accent)" }}
+>
+ログイン／はじめる
+</button>
+)}
 {currentSituation && (
 <GlassPill
 label="タスクを選ぶ"
