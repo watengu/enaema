@@ -67,6 +67,7 @@ tomorrow: { label: string; max: number; min: number } | null;
 
 const SET_KEY = "enaema.taskset.v1";
 const PROFILE_KEY = "enaema.profile.v1";
+const VISITDAYS_KEY = "enaema.visitdays.v1";
 
 // ステータス（属性）の選択肢
 export type Profile = {
@@ -372,10 +373,34 @@ const [tierReady, setTierReady] = useState(false);
 const [session, setSession] = useState<Session | null>(null);
 const [consentNeeded, setConsentNeeded] = useState(false);
 const [consentOpen, setConsentOpen] = useState(false);
+const [visitDays, setVisitDays] = useState(0);
 const [onboardOpen, setOnboardOpen] = useState(false);
 const [onboardStep, setOnboardStep] = useState(0);
 const onboardShownRef = useRef(false);
 const loadStartedRef = useRef(false);
+
+// 開いた日の記録（端末内のみ。継続の1行表示に使う）
+useEffect(() => {
+try {
+const parts = new Intl.DateTimeFormat("en-US", {
+timeZone: "Asia/Tokyo",
+year: "numeric",
+month: "2-digit",
+day: "2-digit",
+}).formatToParts(new Date());
+const getPart = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+const today = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+const raw = window.localStorage.getItem(VISITDAYS_KEY);
+const days: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+if (!days.includes(today)) {
+days.push(today);
+window.localStorage.setItem(VISITDAYS_KEY, JSON.stringify(days.slice(-90)));
+}
+setVisitDays(days.length);
+} catch {
+// 記録できなくても画面は動かす
+}
+}, []);
 
 // セッション確認（クライアント側）: 有効なセッション＋規約への同意があれば free に上げる
 // 未同意なら同意シートを出す（同意するまで特典は使えない）。確認に失敗したらログインは妨げない
@@ -1110,6 +1135,15 @@ style={{ color: "var(--accent)" }}
 </button>
 )}
 </div>
+{!session && tier === "no_login" ? (
+<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+ログインすると、各セットのタスクが全部開いて、ステータスと今日の助言が表紙に出ます。
+</p>
+) : session && visitDays >= 2 ? (
+<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+この端末で開いた日：{visitDays}日
+</p>
+) : null}
 <button
 type="button"
 onClick={openOnboarding}
