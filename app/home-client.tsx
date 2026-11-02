@@ -17,7 +17,7 @@ canSeeSituation,
 canSelectTask,
 type Tier,
 } from "./permissions";
-import { getSession, signInWithGoogle, type Session } from "./auth-client";
+import { getSession, type Session } from "./auth-client";
 import { REGIONS, fetchWeatherAt, type WeatherData } from "./weather";
 import { checkConsent, recordConsent, ConsentSheet } from "./consent";
 import LoginButton from "./login-button";
@@ -67,6 +67,7 @@ tomorrow: { label: string; max: number; min: number } | null;
 
 const SET_KEY = "enaema.taskset.v1";
 const PROFILE_KEY = "enaema.profile.v1";
+const VISITDAYS_KEY = "enaema.visitdays.v1";
 
 // ステータス（属性）の選択肢
 export type Profile = {
@@ -75,12 +76,9 @@ export type Profile = {
   face: string;
   skin: string;
   hair: string;
-  sign: string;
 };
 
-const EMPTY_PROFILE: Profile = { bone: "", pc: "", face: "", skin: "", hair: "", sign: "" };
-
-const SIGNS = ["牡羊座", "牡牛座", "双子座", "蟹座", "獅子座", "乙女座", "天秤座", "蠍座", "射手座", "山羊座", "水瓶座", "魚座"];
+const EMPTY_PROFILE: Profile = { bone: "", pc: "", face: "", skin: "", hair: "" };
 
 const PROFILE_FIELDS: {
   key: keyof Profile;
@@ -93,43 +91,7 @@ const PROFILE_FIELDS: {
   { key: "face", label: "顔タイプ", options: ["キュート", "アクティブキュート", "フレッシュ", "ソフトエレガント", "フェミニン", "エレガント", "クールカジュアル", "クール"], loginOnly: true },
   { key: "skin", label: "肌タイプ", options: ["普通肌", "乾燥肌", "脂性肌", "混合肌", "敏感肌"], loginOnly: true },
   { key: "hair", label: "髪型", options: ["ショート", "ショートボブ", "ボブ", "ミディアム", "セミロング", "ロング"], loginOnly: true },
-  { key: "sign", label: "星座（今日のラッキーバフ用）", options: SIGNS, loginOnly: false },
 ];
-
-// 診断×印象×占い（エナエマ拡張）最小案 2026-10-31: 今日のラッキーバフ（占い）
-// - 占いは娯楽として、診断・天気のアドバイスとは別の行で出す（ラベル分離）
-// - 色はパーソナルカラーの範囲に寄せ、未設定なら季節の色から出す。診断・天気を上書きしない
-// - 同じ日は同じ結果になるよう、日付と星座で固定する（引き直しなし）
-const LUCKY_KEY = "enaema.lucky.v1";
-const LUCKY_COLORS_BY_PC: Record<string, string[]> = {
-  "イエベ春": ["コーラルピンク", "ピーチオレンジ", "ライトキャメル", "イエローゴールド", "ターコイズ", "若草グリーン"],
-  "ブルベ夏": ["ローズピンク", "ラベンダー", "ソフトブルー", "ミントグリーン", "グレージュ", "パールホワイト"],
-  "イエベ秋": ["テラコッタ", "マスタード", "オリーブ", "バーガンディ", "ブロンズ", "ディープオレンジ"],
-  "ブルベ冬": ["ロイヤルブルー", "ワインレッド", "フューシャピンク", "エメラルド", "シルバーグレー", "クリアレッド"],
-};
-const LUCKY_COLORS_BY_SEASON: Record<string, string[]> = {
-  spring: ["さくらピンク", "ミモザイエロー", "若草グリーン", "スカイブルー", "ピーチ", "ライラック"],
-  summer: ["コーラル", "ターコイズ", "ホワイト", "レモンイエロー", "アクアブルー", "ひまわりイエロー"],
-  autumn: ["ボルドー", "マスタード", "テラコッタ", "オリーブ", "キャメル", "プラム"],
-  winter: ["ワインレッド", "ロイヤルブルー", "シルバーグレー", "フューシャピンク", "エメラルド", "アイスブルー"],
-};
-const LUCKY_ITEMS: { name: string; tail: string }[] = [
-  { name: "リップ", tail: "をひと塗り" },
-  { name: "ネイル", tail: "を指先に" },
-  { name: "チーク", tail: "をふわりと" },
-  { name: "アイシャドウ", tail: "をまぶたにひと色" },
-  { name: "スカーフ", tail: "を首元に" },
-  { name: "ポーチ", tail: "を持ち歩いて" },
-];
-function luckySeasonKeyJST(): string {
-  const month = Number(
-    new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Tokyo", month: "numeric" }).format(new Date())
-  );
-  if (month >= 3 && month <= 5) return "spring";
-  if (month >= 6 && month <= 8) return "summer";
-  if (month >= 9 && month <= 11) return "autumn";
-  return "winter";
-}
 
 // 時間帯の窓（JST・分）: 朝 5:00–11:00 / 昼 11:00–17:00 / 晩 17:00–22:00 / 寝る前 22:00–29:00(=翌5:00)
 const WINDOWS: Record<string, { start: number; end: number}> = {
@@ -372,10 +334,34 @@ const [tierReady, setTierReady] = useState(false);
 const [session, setSession] = useState<Session | null>(null);
 const [consentNeeded, setConsentNeeded] = useState(false);
 const [consentOpen, setConsentOpen] = useState(false);
+const [visitDays, setVisitDays] = useState(0);
 const [onboardOpen, setOnboardOpen] = useState(false);
 const [onboardStep, setOnboardStep] = useState(0);
 const onboardShownRef = useRef(false);
 const loadStartedRef = useRef(false);
+
+// 開いた日の記録（端末内のみ。継続の1行表示に使う）
+useEffect(() => {
+try {
+const parts = new Intl.DateTimeFormat("en-US", {
+timeZone: "Asia/Tokyo",
+year: "numeric",
+month: "2-digit",
+day: "2-digit",
+}).formatToParts(new Date());
+const getPart = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+const today = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+const raw = window.localStorage.getItem(VISITDAYS_KEY);
+const days: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+if (!days.includes(today)) {
+days.push(today);
+window.localStorage.setItem(VISITDAYS_KEY, JSON.stringify(days.slice(-90)));
+}
+setVisitDays(days.length);
+} catch {
+// 記録できなくても画面は動かす
+}
+}, []);
 
 // セッション確認（クライアント側）: 有効なセッション＋規約への同意があれば free に上げる
 // 未同意なら同意シートを出す（同意するまで特典は使えない）。確認に失敗したらログインは妨げない
@@ -766,28 +752,6 @@ window.localStorage.setItem("enaema.advice.v1", JSON.stringify(lines.slice(0, 2)
 }
 }, [loaded, profile, adviceNamesKey, weatherNow]);
 
-  // 今日のラッキーバフ（占い）を端末内へ渡す。Ticker がアドバイスの次の行として流す
-  useEffect(() => {
-    if (!loaded) return;
-    const dayIdx = Math.floor(Date.now() / 86400000);
-    const signIdx = profile.sign ? SIGNS.indexOf(profile.sign) : 0;
-    const seasonPalette = LUCKY_COLORS_BY_SEASON[luckySeasonKeyJST()];
-    const palette =
-      profile.pc && LUCKY_COLORS_BY_PC[profile.pc]
-        ? LUCKY_COLORS_BY_PC[profile.pc]
-        : seasonPalette;
-    const color = palette[(dayIdx + signIdx * 2) % palette.length];
-    const item = LUCKY_ITEMS[(dayIdx * 2 + signIdx) % LUCKY_ITEMS.length];
-    const line = profile.sign
-      ? `${profile.sign}のラッキーバフ（占い）｜${color}の${item.name}${item.tail}`
-      : `今日のラッキーバフ（占い）｜${color}の${item.name}${item.tail}`;
-    try {
-      window.localStorage.setItem(LUCKY_KEY, JSON.stringify([line]));
-    } catch {
-      // 保存できなくても画面は動かす
-    }
-  }, [loaded, profile]);
-
 return (
 <>
 {/* 舞台: シーンが主役。字幕とストーリーバーだけを重ね、操作は下の細い帯とパネルに沈める */}
@@ -868,12 +832,6 @@ className="mt-1.5 block whitespace-nowrap text-[10px] tracking-[0.12em]"
 style={{ color: "rgba(43,35,32,0.66)" }}
 >
 ケアの順番、もう迷わない
-</span>
-<span
-className="mt-1 block whitespace-nowrap text-[10px] tracking-[0.12em]"
-style={{ color: "rgba(43,35,32,0.66)" }}
->
-天気と時間帯で変わる美容タスク
 </span>
 </span>
 </span>
@@ -968,16 +926,6 @@ i > 0
 </span>
 </span>
 <span className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 px-4 pb-3.5">
-{tierReady && tier === "no_login" && (
-<button
-type="button"
-onClick={signInWithGoogle}
-className="pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-full py-1.5 pl-3 pr-3.5 text-[11px] font-bold shadow-sm transition active:scale-95"
-style={{ background: "rgba(255,255,255,0.92)", color: "var(--accent)" }}
->
-ログイン／はじめる
-</button>
-)}
 {currentSituation && (
 <GlassPill
 label="タスクを選ぶ"
@@ -1110,6 +1058,15 @@ style={{ color: "var(--accent)" }}
 </button>
 )}
 </div>
+{!session && tier === "no_login" ? (
+<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+ログインすると、各セットのタスクが全部開いて、ステータスと今日の助言が表紙に出ます。
+</p>
+) : session && visitDays >= 2 ? (
+<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+この端末で開いた日：{visitDays}日
+</p>
+) : null}
 <button
 type="button"
 onClick={openOnboarding}
