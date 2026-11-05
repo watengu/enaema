@@ -12,6 +12,7 @@
 // - 選択とステータスは端末内（localStorage）に保存。権限（選べる範囲）は permissions.ts が決める
 
 import { useEffect, useMemo, useRef, useState} from "react";
+import { useRouter } from "next/navigation";
 import {
 canSeeSituation,
 canSelectTask,
@@ -41,6 +42,7 @@ dialogue_variation: number;
 };
 
 type Props = {
+page?: "cover" | "tasks" | "me";
 situations: Situation[];
 tasks: Task[];
 heroUrl: string | null;
@@ -359,6 +361,7 @@ return situationName
 }
 
 export default function HomeClient({
+page = "cover",
 situations,
 tasks,
 heroUrl,
@@ -368,6 +371,7 @@ tier: initialTier,
 currentKey,
 coverMeta,
 }: Props) {
+const router = useRouter();
 const [tier, setTier] = useState<Tier>(initialTier);
 const [tierReady, setTierReady] = useState(false);
 const [session, setSession] = useState<Session | null>(null);
@@ -433,6 +437,19 @@ return () => {
 cancelled = true;
 };
 }, []);
+
+// 段階1: ログイン済みで表紙に着地したら、タスクへ送る（着地＝タスク）。
+// フッターで表紙を明示的に選んだ場合は、そのセッション中は送らない。
+useEffect(() => {
+if (page !== "cover" || !tierReady || tier !== "free") return;
+let stay = false;
+try {
+stay = window.sessionStorage.getItem("enaema.cover.ok") === "1";
+} catch {
+stay = false;
+}
+if (!stay) router.replace("/tasks");
+}, [page, tierReady, tier, router]);
 
 // 初回だけ自動で出す（同意シートが出ている間は待つ）。閉じたらフラグを立てて二度と出さない
 useEffect(() => {
@@ -508,7 +525,7 @@ const [editingProfile, setEditingProfile] = useState(false);
 const [loaded, setLoaded] = useState(false);
 const [editing, setEditing] = useState<string | null>(null);
 const [panelOpen, setPanelOpen] = useState(false);
-const [view, setView] = useState<"cover" | "stage">("cover");
+const [view, setView] = useState<"cover" | "stage">(page === "tasks" ? "stage" : "cover");
 const [slide, setSlide] = useState(0);
 const [cycle, setCycle] = useState(0); // タップでタイマーを仕切り直すための世代カウンタ
 const startedRef = useRef(false);
@@ -817,29 +834,96 @@ return (
 <>
 {/* 舞台: シーンが主役。字幕とストーリーバーだけを重ね、操作は下の細い帯とパネルに沈める */}
 <section className="flex h-full flex-col pt-2">
-{view === "cover"? (
-<>
-{/* 表紙 v13: フルブリード＋表紙の組版（天気ボックス／特大カバーライン／ステータス）を画像の上に組む。表紙はハブ：全面タップで再生、カバーラインのタップでそのシーンへ */}
-<div className="relative -mx-4 min-h-0 flex-1 overflow-hidden">
+{page === "me"? (
+<div className="min-h-0 flex-1 overflow-y-auto pb-4">
+<h2 className="pt-2 text-lg font-bold">あなたのページ</h2>
+<div
+className="mt-3 flex items-center gap-2 text-[11px]"
+style={{ color: "var(--muted)" }}
+>
+<span>アカウント</span>
+<LoginButton />
+{consentNeeded && (
 <button
 type="button"
-aria-label="ルーチンを再生"
-onClick={() => {
-setView("stage");
-playFromTop();
-}}
-className="absolute inset-0 h-full w-full"
-/>
-{heroUrl? (
-<img
-src={heroUrl}
-alt=""
-className="absolute inset-0 h-full w-full object-cover object-top"
-style={{ transform: "translateY(48px)" }}
-/>
-): null}
-<span className="pointer-events-none absolute inset-x-0 top-0 block h-44 bg-gradient-to-b from-[#F7EEDD]/95 via-[#F7EEDD]/45 to-transparent" />
-<span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-3">
+onClick={() => setConsentOpen(true)}
+className="underline"
+style={{ color: "var(--accent)" }}
+>
+利用規約への同意が必要です
+</button>
+)}
+</div>
+{!session && tier === "no_login" ? (
+<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+ログインすると、ステータスと今日の助言が表紙に出ます。
+</p>
+) : session && visitDays >= 2 ? (
+<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+この端末で開いた日：{visitDays}日
+</p>
+) : null}
+<section className="mt-7">
+<h3
+className="border-b-2 pb-2 text-base font-bold"
+style={{ borderColor: "var(--text)" }}
+>
+【ステータス】
+</h3>
+{baseStatus || statusRows.length > 0 ? (
+<div className="mt-3 space-y-1.5">
+{statusRows.map((r) => (
+<p key={r.value} className="flex items-center gap-1.5 text-sm">
+<StatusIcon name={r.icon} />
+{r.value}
+</p>
+))}
+{baseStatus && <p className="text-sm font-medium">骨格{baseStatus}</p>}
+</div>
+) : (
+<p className="mt-3 text-sm" style={{ color: "var(--muted)" }}>
+まだ入っていません。
+</p>
+)}
+<button
+type="button"
+onClick={() => setEditingProfile(true)}
+className="mt-4 w-full rounded-full border py-3 text-sm font-bold"
+style={{ borderColor: "var(--text)" }}
+>
+診断・ステータスを編集する
+</button>
+<p className="mt-2 text-[11px]" style={{ color: "var(--muted)" }}>
+天気の地域と天気ボックスの表示も、この編集の中にあります。
+</p>
+</section>
+<section className="mt-8">
+<h3
+className="border-b-2 pb-2 text-base font-bold"
+style={{ borderColor: "var(--text)" }}
+>
+【履歴】
+</h3>
+<p className="mt-3 text-sm">この端末で開いた日：{visitDays}日</p>
+<p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
+やったタスクと満足度の記録は、次の段階でここに並びます。
+</p>
+</section>
+<button
+type="button"
+onClick={openOnboarding}
+className="mt-8 block text-[11px] underline"
+style={{ color: "var(--muted)" }}
+>
+使い方を見る
+</button>
+</div>
+): view === "cover"? (
+<>
+{/* 表紙 v16（段階1）: マストヘッド（天気／題字／キャッチ）は画像に重ねず、誌面の帯として画像の上に置く。文字と絵は構造的に被らない。全面タップとタスク名タップは /tasks へ */}
+<div className="relative -mx-4 flex min-h-0 flex-1 flex-col">
+<div className="shrink-0 px-4 pb-2 pt-1">
+<div className="flex items-start justify-between gap-3">
 {showWeatherBox && weatherNow? (
 <span
 className="flex items-start gap-2 px-1 py-1 text-[11px] leading-snug"
@@ -901,8 +985,35 @@ style={{ color: "rgba(43,35,32,0.66)" }}
 天気と時間帯で変わる美容タスク
 </span>
 </span>
-</span>
-<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/70 to-transparent px-4 pb-14 pt-20" style={{ color: "var(--text)" }}>
+</div>
+{tierReady && tier === "no_login" && (
+<div className="mt-2 text-right">
+<button
+type="button"
+onClick={signInWithGoogle}
+className="border px-4 py-2 text-xs font-bold"
+style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--surface)" }}
+>
+ログイン／はじめる
+</button>
+</div>
+)}
+</div>
+<div className="relative min-h-0 flex-1 overflow-hidden">
+<button
+type="button"
+aria-label="タスクへ"
+onClick={() => router.push("/tasks")}
+className="absolute inset-0 z-10 h-full w-full"
+/>
+{heroUrl? (
+<img
+src={heroUrl}
+alt=""
+className="absolute inset-0 h-full w-full object-cover object-top"
+/>
+): null}
+<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/70 to-transparent px-4 pb-5 pt-20" style={{ color: "var(--text)" }}>
 <span className="flex items-end justify-between gap-3">
 <span className="block">
 <span
@@ -924,10 +1035,7 @@ Today's Tasks
 key={t.task_id}
 type="button"
 onClick={() => {
-startedRef.current = true;
-setView("stage");
-setSlide(i);
-setCycle((c) => c + 1);
+router.push("/tasks");
 }}
 className={
 i === 0
@@ -992,27 +1100,7 @@ i > 0
 )}
 </span>
 </span>
-<span className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 px-4 pb-3.5">
-{tierReady && tier === "no_login" && (
-<button
-type="button"
-onClick={signInWithGoogle}
-className="pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-full py-1.5 pl-3 pr-3.5 text-[11px] font-bold shadow-sm transition active:scale-95"
-style={{ background: "rgba(255,255,255,0.92)", color: "var(--accent)" }}
->
-ログイン／はじめる
-</button>
-)}
-{currentSituation && (
-<GlassPill
-label="タスクを選ぶ"
-icon="check"
-onClick={() => setEditing(currentSituation.situation_id)}
-/>
-)}
-<GlassPill label="セット一覧" icon="list" onClick={() => setPanelOpen(true)} />
-<GlassPill label="診断・ステータス" icon="sliders" onClick={() => setEditingProfile(true)} />
-</span>
+</div>
 </div>
 </>
 ): (
@@ -1075,7 +1163,6 @@ style={{ color: "rgba(43,35,32,0.75)" }}
 </>
 )}
 <span className="pointer-events-auto mt-2.5 flex justify-end gap-2">
-<GlassPill label="表紙" icon="home" onClick={() => setView("cover")} />
 <GlassPill label="一覧" icon="list" onClick={() => setPanelOpen(true)} />
 {currentSituation && (
 <GlassPill
@@ -1084,7 +1171,7 @@ icon="check"
 onClick={() => setEditing(currentSituation.situation_id)}
 />
 )}
-<GlassPill label="診断・ステータス" icon="sliders" onClick={() => setEditingProfile(true)} />
+<GlassPill label="ステータス" icon="sliders" onClick={() => router.push("/me")} />
 </span>
 </span>
 </div>

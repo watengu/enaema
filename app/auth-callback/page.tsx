@@ -14,7 +14,7 @@ useEffect(() => {
 saveSessionFromHash()
 .then((ok) => {
 if (ok) {
-window.location.replace("/");
+window.location.replace("/tasks");
 } else {
 setFailed(true);
 }
