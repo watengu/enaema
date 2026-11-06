@@ -22,6 +22,7 @@ import { getSession, signInWithGoogle, type Session } from "./auth-client";
 import { REGIONS, fetchWeatherAt, type WeatherData } from "./weather";
 import { checkConsent, recordConsent, ConsentSheet } from "./consent";
 import LoginButton from "./login-button";
+import Image from "next/image";
 
 export type Situation = {
 situation_id: string;
@@ -1163,10 +1164,13 @@ onClick={() => router.push("/tasks")}
 className="absolute inset-0 z-10 h-full w-full"
 />
 {heroUrl? (
-<img
+<Image
 src={heroUrl}
 alt=""
-className="absolute inset-0 h-full w-full object-cover object-top"
+fill
+priority
+sizes="(max-width: 448px) 100vw, 448px"
+className="object-cover object-top"
 />
 ): null}
 <span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/70 to-transparent px-4 pb-5 pt-20" style={{ color: "var(--text)" }}>
@@ -1264,12 +1268,14 @@ i > 0
 {/* 舞台 v14.1: 画面そのものが舞台（全面画像／バーと字幕と操作は画像の中） */}
 {current && (
 <div className="relative -mx-4 min-h-0 flex-1 overflow-hidden">
-{/* eslint-disable-next-line @next/next/no-img-element */}
-<img
+<Image
 key={current.key}
 src={current.imageUrl}
 alt={current.task? current.task.task_name: characterName}
-className="absolute inset-0 h-full w-full object-cover"
+fill
+priority
+sizes="(max-width: 448px) 100vw, 448px"
+className="object-cover"
 />
 <button
 type="button"
@@ -1534,10 +1540,12 @@ fontFamily: "var(--font-display)",
 >
 {String(task.order_index).padStart(2, "0")}
 </span>
-{/* eslint-disable-next-line @next/next/no-img-element */}
-<img
+<Image
 src={`${imageBase}${task.image_path}`}
 alt={task.task_name}
+width={68}
+height={84}
+sizes="68px"
 className="h-[84px] w-[68px] shrink-0 rounded-md object-cover"
 loading="lazy"
 />
@@ -1625,10 +1633,12 @@ toggleSelected(editingSituation.situation_id, task.task_id)
 }
 className="flex w-full items-center gap-3 py-3 text-left"
 >
-{/* eslint-disable-next-line @next/next/no-img-element */}
-<img
+<Image
 src={`${imageBase}${task.image_path}`}
 alt={task.task_name}
+width={42}
+height={52}
+sizes="42px"
 className="h-[52px] w-[42px] shrink-0 rounded-md object-cover"
 loading="lazy"
 />
