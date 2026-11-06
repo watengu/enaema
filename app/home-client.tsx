@@ -802,12 +802,12 @@ setSlide(sceneIdx);
 
 // 自動再生（6秒ごと）。タップで次へ＋タイマー仕切り直し
 useEffect(() => {
-if (slides.length <= 1 || onboardOpen || consentOpen) return;
+if (slides.length <= 1 || onboardOpen || consentOpen || ratingFor !== null || answer) return;
 const id = window.setInterval(() => {
 setSlide((prev) => (prev + 1) % slides.length);
 }, 6000);
 return () => window.clearInterval(id);
-}, [slides.length, cycle, onboardOpen, consentOpen]);
+}, [slides.length, cycle, onboardOpen, consentOpen, ratingFor, answer]);
 
 const advance = () => {
 if (slides.length <= 1) return;
