@@ -70,6 +70,7 @@ tomorrow: { label: string; max: number; min: number } | null;
 const SET_KEY = "enaema.taskset.v1";
 const PROFILE_KEY = "enaema.profile.v1";
 const VISITDAYS_KEY = "enaema.visitdays.v1";
+const HISTORY_KEY = "enaema.history.v1";
 
 // ステータス（属性）の選択肢
 export type Profile = {
@@ -232,17 +233,56 @@ body: "骨格・パーソナルカラーなどを選ぶと、表紙にあなた�
 },
 ];
 
+// 段階2: やった記録（端末内保持。第1段は localStorage、DB 化は段階3）
+type HistoryRecord = {
+d: string; // YYYY-MM-DD (JST)
+task_id: number;
+situation_id: string;
+task_name: string;
+satisfaction: 1 | 2 | 3;
+};
+
+const SATISFACTION_LABELS: Record<number, string> = {
+1: "いまいち",
+2: "ふつう",
+3: "よかった",
+};
+
+function todayJST(): string {
+const parts = new Intl.DateTimeFormat("en-US", {
+timeZone: "Asia/Tokyo",
+year: "numeric",
+month: "2-digit",
+day: "2-digit",
+}).formatToParts(new Date());
+const getPart = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+return `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+}
+
+function dateLabelJST(d: string): string {
+const [y, m, dd] = d.split("-").map((v) => parseInt(v, 10));
+const w = ["日", "月", "火", "水", "木", "金", "土"][
+new Date(y, m - 1, dd).getDay()
+];
+return `${m}月${dd}日（${w}）`;
+}
+
 function GlassPill(props: {
 label: string;
 icon: "check" | "list" | "sliders" | "home";
 onClick: () => void;
+accent?: boolean;
 }) {
 return (
 <button
 type="button"
 onClick={props.onClick}
 className="pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-full py-1.5 pl-2.5 pr-3 text-[11px] font-medium shadow-sm transition active:scale-95"
-style={{ background: "rgba(255,255,255,0.92)", color: "var(--text)" }}
+style={
+props.accent
+? { background: "var(--accent)", color: "#FFFFFF", fontWeight: 700 }
+: { background: "rgba(255,255,255,0.92)", color: "var(--text)" }
+}
 >
 <PillIcon name={props.icon} />
 {props.label}
@@ -378,6 +418,46 @@ const [session, setSession] = useState<Session | null>(null);
 const [consentNeeded, setConsentNeeded] = useState(false);
 const [consentOpen, setConsentOpen] = useState(false);
 const [visitDays, setVisitDays] = useState(0);
+const [history, setHistory] = useState<HistoryRecord[]>([]);
+const [ratingFor, setRatingFor] = useState<number | null>(null);
+
+useEffect(() => {
+try {
+const raw = window.localStorage.getItem(HISTORY_KEY);
+if (raw) setHistory(JSON.parse(raw) as HistoryRecord[]);
+} catch {
+// 読めなければ記録なしで動かす
+}
+}, []);
+
+const saveHistory = (next: HistoryRecord[]) => {
+setHistory(next);
+try {
+window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next.slice(-500)));
+} catch {
+// 保存できなくても画面は動かす
+}
+};
+
+const recordDone = (task: Task, satisfaction: 1 | 2 | 3) => {
+const d = todayJST();
+const rec: HistoryRecord = {
+d,
+task_id: task.task_id,
+situation_id: task.situation_id,
+task_name: task.task_name,
+satisfaction,
+};
+saveHistory([
+...history.filter((r) => !(r.d === d && r.task_id === task.task_id)),
+rec,
+]);
+setRatingFor(null);
+advance();
+};
+
+const todayRecord = (taskId: number): HistoryRecord | undefined =>
+history.find((r) => r.d === todayJST() && r.task_id === taskId);
 const [onboardOpen, setOnboardOpen] = useState(false);
 const [onboardStep, setOnboardStep] = useState(0);
 const onboardShownRef = useRef(false);
@@ -905,9 +985,53 @@ style={{ borderColor: "var(--text)" }}
 【履歴】
 </h3>
 <p className="mt-3 text-sm">この端末で開いた日：{visitDays}日</p>
+{history.length === 0 ? (
 <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
-やったタスクと満足度の記録は、次の段階でここに並びます。
+まだ記録がありません。タスクの画面で「やった」を押すと、ここに並びます。
 </p>
+) : (
+<>
+<p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
+やったタスク：累計{history.length}件（この端末の記録）
+</p>
+{[...new Set(history.map((r) => r.d))]
+.sort()
+.reverse()
+.slice(0, 14)
+.map((d) => (
+<div key={d} className="mt-4">
+<p className="text-[11px] font-bold" style={{ color: "var(--muted)" }}>
+{d === todayJST() ? "今日" : dateLabelJST(d)}
+</p>
+<ul>
+{history
+.filter((r) => r.d === d)
+.map((r) => (
+<li
+key={`${r.d}-${r.task_id}`}
+className="flex items-baseline justify-between gap-3 border-b py-2"
+style={{ borderColor: "var(--line)" }}
+>
+<span className="text-sm">{r.task_name}</span>
+<span
+className="shrink-0 text-[11px]"
+style={{
+color:
+r.satisfaction === 3
+? "var(--accent)"
+: "var(--muted)",
+fontWeight: r.satisfaction === 3 ? 700 : 400,
+}}
+>
+{SATISFACTION_LABELS[r.satisfaction]}
+</span>
+</li>
+))}
+</ul>
+</div>
+))}
+</>
+)}
 </section>
 <button
 type="button"
@@ -1162,7 +1286,40 @@ style={{ color: "rgba(43,35,32,0.75)" }}
 )}
 </>
 )}
+{current.task && ratingFor === current.task.task_id && (
+<span className="pointer-events-auto mt-2.5 flex items-center justify-end gap-2">
+<span className="text-[11px]" style={{ color: "rgba(43,35,32,0.7)" }}>
+どうでしたか
+</span>
+{([1, 2, 3] as const).map((v) => (
+<button
+key={v}
+type="button"
+onClick={() => current.task && recordDone(current.task, v)}
+className="rounded-full px-3 py-1.5 text-[11px] font-medium shadow-sm transition active:scale-95"
+style={{ background: "rgba(255,255,255,0.92)", color: "var(--text)" }}
+>
+{SATISFACTION_LABELS[v]}
+</button>
+))}
+</span>
+)}
 <span className="pointer-events-auto mt-2.5 flex justify-end gap-2">
+{current.task && (
+<GlassPill
+label={
+todayRecord(current.task.task_id)
+? `やった・${SATISFACTION_LABELS[todayRecord(current.task.task_id)!.satisfaction]}`
+: "やった"
+}
+icon="check"
+accent={!todayRecord(current.task.task_id)}
+onClick={() => {
+const t = current.task;
+if (t) setRatingFor(ratingFor === t.task_id ? null : t.task_id);
+}}
+/>
+)}
 <GlassPill label="一覧" icon="list" onClick={() => setPanelOpen(true)} />
 {currentSituation && (
 <GlassPill
