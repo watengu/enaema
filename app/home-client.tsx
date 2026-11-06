@@ -248,6 +248,13 @@ const SATISFACTION_LABELS: Record<number, string> = {
 3: "よかった",
 };
 
+// 答え合わせ一言（巫女の反応は文言のみ・控えめに。統合案 2026-11-06 の3・4）
+const ANSWER_LINES: Record<number, string> = {
+1: "合わなかったのですね。次から静かに外しておきます",
+2: "ありがとうございます。もっと合う形を探しますね",
+3: "合っていたようで、何よりです",
+};
+
 function todayJST(): string {
 const parts = new Intl.DateTimeFormat("en-US", {
 timeZone: "Asia/Tokyo",
@@ -420,6 +427,9 @@ const [consentOpen, setConsentOpen] = useState(false);
 const [visitDays, setVisitDays] = useState(0);
 const [history, setHistory] = useState<HistoryRecord[]>([]);
 const [ratingFor, setRatingFor] = useState<number | null>(null);
+const [answer, setAnswer] = useState<string | null>(null);
+const [adviceLine, setAdviceLine] = useState("");
+const answerTimerRef = useRef<number | null>(null);
 
 useEffect(() => {
 try {
@@ -453,6 +463,21 @@ saveHistory([
 rec,
 ]);
 setRatingFor(null);
+setAnswer(ANSWER_LINES[satisfaction]);
+setCycle((c) => c + 1);
+if (answerTimerRef.current) window.clearTimeout(answerTimerRef.current);
+answerTimerRef.current = window.setTimeout(() => {
+setAnswer(null);
+advance();
+}, 2400);
+};
+
+const clearAnswerAndAdvance = () => {
+if (answerTimerRef.current) {
+window.clearTimeout(answerTimerRef.current);
+answerTimerRef.current = null;
+}
+setAnswer(null);
 advance();
 };
 
@@ -752,13 +777,19 @@ return (selectableBySituation[situationId]?? [])
 const deck = currentSituation? selectedTasks(currentSituation.situation_id): [];
 
 const slides: Slide[] = useMemo(() => {
+const latestSat = new Map<number, number>();
+for (const r of history) latestSat.set(r.task_id, r.satisfaction);
+const orderedDeck = [
+...deck.filter((t) => latestSat.get(t.task_id) !== 1),
+...deck.filter((t) => latestSat.get(t.task_id) === 1),
+];
 const list: Slide[] = [];
-for (const t of deck) {
+for (const t of orderedDeck) {
 list.push({ key: `task-${t.task_id}`, imageUrl: `${imageBase}${t.image_path}`, task: t});
 }
 return list;
 // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [heroUrl, imageBase, deck.map((t) => t.task_id).join(",")]);
+}, [heroUrl, imageBase, deck.map((t) => t.task_id).join(","), history.map((r) => `${r.task_id}:${r.satisfaction}`).join(",")]);
 
 // 初回だけ、開始位置を時刻に合わせる（いまのシーンから）
 useEffect(() => {
@@ -882,6 +913,7 @@ lines.push(pick([
 ], 6));
 }
 try {
+setAdviceLine(lines[0] ?? "");
 window.localStorage.setItem("enaema.advice.v1", JSON.stringify(lines.slice(0, 2)));
 } catch {
 // 保存できなくても表示はそのまま
@@ -1241,7 +1273,7 @@ className="absolute inset-0 h-full w-full object-cover"
 />
 <button
 type="button"
-onClick={advance}
+onClick={clearAnswerAndAdvance}
 className="absolute inset-0 h-full w-full"
 aria-label="次のシーンへ"
 />
@@ -1268,6 +1300,12 @@ style={{ color: "rgba(43,35,32,0.6)" }}
 {currentSituation.name}のルーチン
 </span>
 )}
+<span
+className="mt-0.5 block text-[10px]"
+style={{ color: "rgba(43,35,32,0.55)" }}
+>
+まずはこの1つだけ。5分で終わるケアです
+</span>
 {current.task && (
 <>
 <span
@@ -1284,7 +1322,23 @@ style={{ color: "rgba(43,35,32,0.75)" }}
 {current.task.dialogue}
 </span>
 )}
+{adviceLine && (
+<span
+className="mt-1.5 block border-l-2 pl-2 text-[11px] leading-relaxed"
+style={{ borderColor: "rgba(43,35,32,0.3)", color: "rgba(43,35,32,0.75)" }}
+>
+{adviceLine}
+</span>
+)}
 </>
+)}
+{current.task && answer && (
+<span
+className="pointer-events-none mt-2.5 block text-right text-xs"
+style={{ fontFamily: "var(--font-display-jp)", color: "rgba(43,35,32,0.85)" }}
+>
+{answer}
+</span>
 )}
 {current.task && ratingFor === current.task.task_id && (
 <span className="pointer-events-auto mt-2.5 flex items-center justify-end gap-2">
