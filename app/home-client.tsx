@@ -23,6 +23,7 @@ import { REGIONS, fetchWeatherAt, type WeatherData } from "./weather";
 import { checkConsent, recordConsent, ConsentSheet } from "./consent";
 import LoginButton from "./login-button";
 import Image from "next/image";
+import Ticker from "./ticker";
 
 export type Situation = {
 situation_id: string;
@@ -44,6 +45,8 @@ dialogue_variation: number;
 
 type Props = {
 page?: "cover" | "tasks" | "me";
+tickerItems?: { text: string; url?: string | null }[];
+weatherLines?: string[];
 situations: Situation[];
 tasks: Task[];
 heroUrl: string | null;
@@ -413,6 +416,8 @@ page = "cover",
 situations,
 tasks,
 heroUrl,
+tickerItems,
+weatherLines,
 characterName,
 imageBase,
 tier: initialTier,
@@ -431,6 +436,29 @@ const [ratingFor, setRatingFor] = useState<number | null>(null);
 const [answer, setAnswer] = useState<string | null>(null);
 const [adviceLine, setAdviceLine] = useState("");
 const answerTimerRef = useRef<number | null>(null);
+
+// スワイプで3面移動（表紙⇄タスク⇄自分）。パネル・編集・モーダル表示中と入力要素からは無効
+const touchRef = useRef<{ x: number; y: number } | null>(null);
+const PAGE_PATHS = ["/", "/tasks", "/me"];
+const onSwipeStart = (e: React.TouchEvent) => {
+touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+};
+const onSwipeEnd = (e: React.TouchEvent) => {
+const st = touchRef.current;
+touchRef.current = null;
+if (!st) return;
+if (panelOpen || editing !== null || editingProfile || onboardOpen || consentOpen) return;
+const target = e.target as HTMLElement;
+if (target.closest("input, textarea, select")) return;
+const t = e.changedTouches[0];
+const dx = t.clientX - st.x;
+const dy = t.clientY - st.y;
+if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+const idx = PAGE_PATHS.indexOf(page === "cover" ? "/" : page === "tasks" ? "/tasks" : "/me");
+const next = dx < 0 ? idx + 1 : idx - 1;
+if (next < 0 || next >= PAGE_PATHS.length) return;
+router.push(PAGE_PATHS[next]);
+};
 
 useEffect(() => {
 try {
@@ -946,10 +974,34 @@ window.localStorage.setItem("enaema.advice.v1", JSON.stringify(lines.slice(0, 2)
 return (
 <>
 {/* 舞台: シーンが主役。字幕とストーリーバーだけを重ね、操作は下の細い帯とパネルに沈める */}
-<section className="flex h-full flex-col pt-2">
+<section className="flex h-full flex-col pt-2" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
 {page === "me"? (
 <div className="min-h-0 flex-1 overflow-y-auto pb-4">
-<h2 className="pt-2 text-lg font-bold">あなたのページ</h2>
+<div className="relative -mx-4 h-44 shrink-0 overflow-hidden">
+{heroUrl ? (
+<Image
+src={heroUrl}
+alt=""
+fill
+sizes="(max-width: 448px) 100vw, 448px"
+className="object-cover object-top"
+/>
+) : null}
+<span className="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/60 to-transparent px-4 pb-3 pt-14">
+<span
+className="block text-[10px] tracking-[0.2em]"
+style={{ color: "var(--muted)" }}
+>
+{characterName}と、あなたの記録
+</span>
+<span
+className="block text-[26px] font-bold leading-tight"
+style={{ fontFamily: "var(--font-display-jp)" }}
+>
+あなたのページ
+</span>
+</span>
+</div>
 <div
 className="mt-3 flex items-center gap-2 text-[11px]"
 style={{ color: "var(--muted)" }}
@@ -1017,23 +1069,28 @@ style={{ borderColor: "var(--text)" }}
 >
 【履歴】
 </h3>
-<p className="mt-3 text-sm">この端末で開いた日：{visitDays}日</p>
+<p className="mt-3 text-sm">
+この端末で開いた日：{visitDays}日
+{history.length > 0 && (
+<span style={{ color: "var(--muted)" }}> ・ やったタスク累計{history.length}件</span>
+)}
+</p>
 {history.length === 0 ? (
 <p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
 まだ記録がありません。タスクの画面で「やった」を押すと、ここに並びます。
 </p>
 ) : (
 <>
-<p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
-やったタスク：累計{history.length}件（この端末の記録）
-</p>
 {[...new Set(history.map((r) => r.d))]
 .sort()
 .reverse()
 .slice(0, 14)
 .map((d) => (
 <div key={d} className="mt-4">
-<p className="text-[11px] font-bold" style={{ color: "var(--muted)" }}>
+<p
+className="text-[13px] font-bold"
+style={{ color: "var(--text)", fontFamily: "var(--font-display-jp)" }}
+>
 {d === todayJST() ? "今日" : dateLabelJST(d)}
 </p>
 <ul>
@@ -1077,13 +1134,28 @@ style={{ color: "var(--muted)" }}
 </div>
 ): view === "cover"? (
 <>
-{/* 表紙 v16（段階1）: マストヘッド（天気／題字／キャッチ）は画像に重ねず、誌面の帯として画像の上に置く。文字と絵は構造的に被らない。全面タップとタスク名タップは /tasks へ */}
-<div className="relative -mx-4 flex min-h-0 flex-1 flex-col">
-<div className="shrink-0 px-4 pb-2 pt-1">
-<div className="flex items-start justify-between gap-3">
-{showWeatherBox && weatherNow? (
+{/* 表紙 v17（全面）: 画面いっぱいが表紙そのもの。題字・天気は絵の上に重ね、キャッチ・タスク・ステータスは下部のグラデーションに、帯（ティッカー）は表紙の内側の最下部に収める */}
+<div className="relative -mx-4 min-h-0 flex-1 overflow-hidden">
+{heroUrl ? (
+<Image
+src={heroUrl}
+alt=""
+fill
+priority
+sizes="(max-width: 448px) 100vw, 448px"
+className="object-cover object-top"
+/>
+) : null}
+<button
+type="button"
+aria-label="タスクへ"
+onClick={() => router.push("/tasks")}
+className="absolute inset-0 z-10 h-full w-full"
+/>
+<div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 px-4 pt-3">
+{showWeatherBox && weatherNow ? (
 <span
-className="flex items-start gap-2 px-1 py-1 text-[11px] leading-snug"
+className="flex items-start gap-2 rounded-md bg-white/85 px-2 py-1.5 text-[11px] leading-snug shadow-sm backdrop-blur-sm"
 style={{ color: "var(--text)" }}
 >
 <span className="mt-0.5 shrink-0">
@@ -1101,11 +1173,11 @@ style={{ color: "var(--text)" }}
 </span>
 </span>
 </span>
-): (
+) : (
 <span />
 )}
 <span
-className="block px-1 py-1 text-right"
+className="block px-1 py-1 text-right [text-shadow:0_0_10px_rgba(247,238,221,0.95),0_0_3px_rgba(247,238,221,0.95)]"
 style={{ color: "var(--text)" }}
 >
 <span className="block whitespace-nowrap text-[10px] tracking-widest">
@@ -1141,39 +1213,20 @@ style={{ color: "rgba(43,35,32,0.66)" }}
 >
 天気と時間帯で変わる美容タスク
 </span>
-</span>
-</div>
 {tierReady && tier === "no_login" && (
-<div className="mt-2 text-right">
 <button
 type="button"
 onClick={signInWithGoogle}
-className="border px-4 py-2 text-xs font-bold"
-style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--surface)" }}
+className="pointer-events-auto mt-2 border px-4 py-2 text-xs font-bold"
+style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "rgba(255,255,255,0.9)" }}
 >
 ログイン／はじめる
 </button>
-</div>
 )}
+</span>
 </div>
-<div className="relative min-h-0 flex-1 overflow-hidden">
-<button
-type="button"
-aria-label="タスクへ"
-onClick={() => router.push("/tasks")}
-className="absolute inset-0 z-10 h-full w-full"
-/>
-{heroUrl? (
-<Image
-src={heroUrl}
-alt=""
-fill
-priority
-sizes="(max-width: 448px) 100vw, 448px"
-className="object-cover object-top"
-/>
-): null}
-<span className="pointer-events-none absolute inset-x-0 bottom-0 block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/70 to-transparent px-4 pb-5 pt-20" style={{ color: "var(--text)" }}>
+<div className="absolute inset-x-0 bottom-0 z-20">
+<span className="pointer-events-none block bg-gradient-to-t from-[#F7EEDD]/95 via-[#F7EEDD]/70 to-transparent px-4 pb-3 pt-20" style={{ color: "var(--text)" }}>
 <span className="flex items-end justify-between gap-3">
 <span className="block">
 <span
@@ -1188,7 +1241,7 @@ transformOrigin: "left center",
 >
 Today's Tasks
 </span>
-{coverTasks.length > 0? (
+{coverTasks.length > 0 ? (
 <span className="pointer-events-auto block space-y-1">
 {coverTasks.map((t, i) => (
 <button
@@ -1208,7 +1261,7 @@ style={{ fontFamily: "var(--font-display-jp)", letterSpacing: "0.04em" }}
 </button>
 ))}
 </span>
-): (
+) : (
 <span
 className="block text-[27px] font-bold leading-tight"
 style={{ fontFamily: "var(--font-display-jp)", letterSpacing: "0.04em" }}
@@ -1238,7 +1291,7 @@ Make today the best day
 </span>
 </span>
 {(baseStatus || extraStatus) && (
-<button type="button" onClick={() => setEditingProfile(true)} className="pointer-events-auto block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]">
+<span className="block shrink-0 text-right text-[11px] leading-relaxed [text-shadow:0_0_6px_rgba(247,238,221,0.95)]">
 {statusRows.map((r, i) => (
 <span
 key={r.value}
@@ -1256,10 +1309,16 @@ i > 0
 {baseStatus && (
 <span className="mt-1 block font-medium">骨格{baseStatus}</span>
 )}
-</button>
+</span>
 )}
 </span>
 </span>
+<div
+className="pointer-events-auto px-4 pb-1"
+style={{ background: "rgba(247,238,221,0.95)" }}
+>
+<Ticker items={tickerItems ?? []} weatherLines={weatherLines} />
+</div>
 </div>
 </div>
 </>
@@ -1422,40 +1481,6 @@ style={{ color: "var(--muted)" }}
 閉じる
 </button>
 </div>
-<div
-className="mt-3 flex items-center gap-2 text-[11px]"
-style={{ color: "var(--muted)" }}
->
-<span>アカウント</span>
-<LoginButton />
-{consentNeeded && (
-<button
-type="button"
-onClick={() => setConsentOpen(true)}
-className="underline"
-style={{ color: "var(--accent)" }}
->
-利用規約への同意が必要です
-</button>
-)}
-</div>
-{!session && tier === "no_login" ? (
-<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
-ログインすると、各セットのタスクが全部開いて、ステータスと今日の助言が表紙に出ます。
-</p>
-) : session && visitDays >= 2 ? (
-<p className="mt-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
-この端末で開いた日：{visitDays}日
-</p>
-) : null}
-<button
-type="button"
-onClick={openOnboarding}
-className="mt-2 block text-[11px] underline"
-style={{ color: "var(--muted)" }}
->
-使い方を見る
-</button>
 <div
 className="mt-4 flex gap-2 border-b pb-4"
 style={{ borderColor: "var(--line)" }}

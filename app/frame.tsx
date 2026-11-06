@@ -1,15 +1,12 @@
 // 段階1: 3ページ共通の枠（データ取得→ HomeClient → 帯 → フッター）。
 import HomeClient from "./home-client";
-import Ticker from "./ticker";
 import SiteFooter from "./site-footer";
 import { loadHomeData } from "./data";
 
 export default async function Frame({
   page,
-  withTicker,
 }: {
   page: "cover" | "tasks" | "me";
-  withTicker?: boolean;
 }) {
   const d = await loadHomeData();
   return (
@@ -37,12 +34,9 @@ export default async function Frame({
               tier={d.tier}
               currentKey={d.currentKey}
               coverMeta={d.coverMeta}
+              tickerItems={d.tickerLines}
+              weatherLines={d.weatherLines}
             />
-          </div>
-        )}
-        {withTicker && (
-          <div className="shrink-0">
-            <Ticker items={d.tickerLines} weatherLines={d.weatherLines} />
           </div>
         )}
         <SiteFooter />

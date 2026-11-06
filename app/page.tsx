@@ -2,5 +2,5 @@
 import Frame from "./frame";
 
 export default async function Home() {
-  return <Frame page="cover" withTicker />;
+  return <Frame page="cover" />;
 }
