@@ -659,6 +659,15 @@ const [editingProfile, setEditingProfile] = useState(false);
 const [loaded, setLoaded] = useState(false);
 const [editing, setEditing] = useState<string | null>(null);
 const [panelOpen, setPanelOpen] = useState(false);
+const [regionSheetOpen, setRegionSheetOpen] = useState(false);
+const [notice, setNotice] = useState<string | null>(null);
+const [panelNotice, setPanelNotice] = useState<string | null>(null);
+const noticeTimerRef = useRef<number | null>(null);
+const showNotice = (text: string) => {
+setNotice(text);
+if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+noticeTimerRef.current = window.setTimeout(() => setNotice(null), 3600);
+};
 const [view, setView] = useState<"cover" | "stage">(page === "tasks" ? "stage" : "cover");
 const [slide, setSlide] = useState(0);
 const [cycle, setCycle] = useState(0); // タップでタイマーを仕切り直すための世代カウンタ
@@ -673,6 +682,9 @@ const [regionWeather, setRegionWeather] = useState<WeatherData | null>(null);
 const currentRegion = REGIONS.find((r) => r.id === regionId)?? REGIONS[0];
 const weatherNow: CoverWeather =
 regionId === "ginza"? coverMeta.weather: (regionWeather?? coverMeta.weather);
+
+// 選んだ地域の天気が取れるまでは、銀座の値をその地域の天気として出さない
+const weatherReady = regionId === "ginza" || regionWeather !== null;
 
 useEffect(() => {
 try {
@@ -864,6 +876,34 @@ setSlide(0);
 setCycle((c) => c + 1);
 };
 
+// 一覧の行タップ: いまの時間帯なら舞台をそのタスクへ。別の時間帯なら、その旨をパネル内に知らせる
+const jumpToTask = (situationId: string, taskId: number) => {
+if (!currentSituation || situationId !== currentSituation.situation_id) {
+const sName = situations.find((x) => x.situation_id === situationId)?.name ?? "";
+setPanelNotice(`${sName}のタスクです。その時間帯に舞台へ出ます`);
+return;
+}
+const idx = slides.findIndex((sl) => sl.task?.task_id === taskId);
+if (idx < 0) return;
+setPanelOpen(false);
+setPanelNotice(null);
+setSlide(idx);
+setCycle((c) => c + 1);
+};
+
+const saveSet = () => {
+const sName = editingSituation?.name ?? "";
+const isCurrent = currentSituation && editingSituation?.situation_id === currentSituation.situation_id;
+setEditing(null);
+if (sName) {
+showNotice(
+isCurrent
+? `${sName}のセットを更新しました`
+: `${sName}のセットを更新しました（${sName}の時間帯に舞台へ出ます）`
+);
+}
+};
+
 const current = slides[Math.min(slide, Math.max(slides.length - 1, 0))]?? null;
 const playingTaskId = current?.task?.task_id?? null;
 
@@ -891,6 +931,7 @@ const coverTasks = slides.flatMap((s) => (s.task? [s.task]: []));
 const adviceNamesKey = coverTasks.map((t) => t.task_name).join("|");
 useEffect(() => {
 if (!loaded) return;
+if (!weatherReady) return;
 const w = weatherNow;
 const dayIdx = Math.floor(Date.now() / 86400000);
 const pick = (variants: string[], seed: number) => variants[(dayIdx + seed) % variants.length];
@@ -947,7 +988,7 @@ window.localStorage.setItem("enaema.advice.v1", JSON.stringify(lines.slice(0, 2)
 } catch {
 // 保存できなくても表示はそのまま
 }
-}, [loaded, profile, adviceNamesKey, weatherNow]);
+}, [loaded, profile, adviceNamesKey, weatherNow, weatherReady]);
 
   // 今日のラッキーバフ（占い）を端末内へ渡す。Ticker がアドバイスの次の行として流す
   useEffect(() => {
@@ -1059,7 +1100,7 @@ style={{ borderColor: "var(--text)" }}
 診断・ステータスを編集する
 </button>
 <p className="mt-2 text-[11px]" style={{ color: "var(--muted)" }}>
-天気の地域と天気ボックスの表示も、この編集の中にあります。
+天気ボックスの表示は、この編集の中にあります。地域は表紙の天気ボックスから変えられます。
 </p>
 </section>
 <section className="mt-8">
@@ -1153,9 +1194,11 @@ onClick={() => router.push("/tasks")}
 className="absolute inset-0 z-10 h-full w-full"
 />
 <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 px-4 pt-3">
-{showWeatherBox && weatherNow ? (
-<span
-className="flex items-start gap-2 rounded-md bg-white/85 px-2 py-1.5 text-[11px] leading-snug shadow-sm backdrop-blur-sm"
+{showWeatherBox && weatherReady && weatherNow ? (
+<button
+type="button"
+onClick={() => setRegionSheetOpen(true)}
+className="pointer-events-auto flex items-start gap-2 rounded-md bg-white/85 px-2 py-1.5 text-left text-[11px] leading-snug shadow-sm backdrop-blur-sm"
 style={{ color: "var(--text)" }}
 >
 <span className="mt-0.5 shrink-0">
@@ -1172,7 +1215,16 @@ style={{ color: "var(--text)" }}
 {weatherNow.label}・{weatherNow.conditionShort}
 </span>
 </span>
-</span>
+</button>
+) : showWeatherBox && regionId !== "ginza" ? (
+<button
+type="button"
+onClick={() => setRegionSheetOpen(true)}
+className="pointer-events-auto rounded-md bg-white/70 px-2 py-1.5 text-[11px]"
+style={{ color: "var(--muted)" }}
+>
+{currentRegion.en} の天気を取得中…
+</button>
 ) : (
 <span />
 )}
@@ -1327,6 +1379,16 @@ style={{ background: "rgba(247,238,221,0.95)" }}
 {/* 舞台 v14.1: 画面そのものが舞台（全面画像／バーと字幕と操作は画像の中） */}
 {current && (
 <div className="relative -mx-4 min-h-0 flex-1 overflow-hidden">
+{notice && (
+<div className="pointer-events-none absolute inset-x-0 top-10 z-30 flex justify-center px-4">
+<span
+className="border px-3 py-1.5 text-xs"
+style={{ borderColor: "var(--line)", background: "rgba(255,255,255,0.94)", color: "var(--text)" }}
+>
+{notice}
+</span>
+</div>
+)}
 <Image
 key={current.key}
 src={current.imageUrl}
@@ -1442,7 +1504,7 @@ if (t) setRatingFor(ratingFor === t.task_id ? null : t.task_id);
 <GlassPill label="一覧" icon="list" onClick={() => setPanelOpen(true)} />
 {currentSituation && (
 <GlassPill
-label="タスクを選ぶ"
+label="セットを編集"
 icon="check"
 onClick={() => setEditing(currentSituation.situation_id)}
 />
@@ -1516,6 +1578,14 @@ style={{ borderColor: "var(--line)", color: "var(--text)" }}
 やり直し
 </button>
 </div>
+{panelNotice && (
+<p
+className="mt-4 border px-3 py-2 text-xs"
+style={{ borderColor: "var(--line)", color: "var(--text)", background: "rgba(166,39,43,0.05)" }}
+>
+{panelNotice}
+</p>
+)}
 {visibleSituations.map((situation) => {
 const items = selectedTasks(situation.situation_id);
 const isCurrent = currentSituation?.situation_id === situation.situation_id;
@@ -1540,7 +1610,7 @@ onClick={() => setEditing(situation.situation_id)}
 className="rounded-full border bg-white/70 px-2.5 py-0.5 text-[11px]"
 style={{ borderColor: "var(--line)", color: "var(--text)" }}
 >
-セットを変える
+セットを編集
 </button>
 </span>
 </div>
@@ -1553,8 +1623,13 @@ style={{ borderColor: "var(--line)", color: "var(--text)" }}
 {items.map((task) => (
 <li
 key={task.task_id}
-className="flex gap-3 border-b py-3"
+className="border-b"
 style={{ borderColor: "var(--line)"}}
+>
+<button
+type="button"
+onClick={() => jumpToTask(situation.situation_id, task.task_id)}
+className="flex w-full gap-3 py-3 text-left"
 >
 <span
 className="w-6 shrink-0 pt-1 text-right text-sm"
@@ -1590,6 +1665,7 @@ style={{ color: "var(--muted)"}}
 </p>
 )}
 </div>
+</button>
 </li>
 ))}
 </ul>
@@ -1699,12 +1775,59 @@ selected
 </ul>
 <button
 type="button"
-onClick={() => setEditing(null)}
+onClick={saveSet}
 className="mt-4 w-full rounded-full border py-3 text-sm font-bold"
 style={{ borderColor: "var(--text)"}}
 >
 この内容でセットする
 </button>
+</div>
+</div>
+)}
+{/* 天気の地域シート（表紙の天気ボックス起点） */}
+{regionSheetOpen && (
+<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+<div
+className="w-full max-w-md border-t-2 bg-[var(--surface)] p-4"
+style={{ borderColor: "var(--text)" }}
+>
+<div className="flex items-baseline justify-between">
+<h3 className="text-base font-bold">天気の地域</h3>
+<button
+type="button"
+onClick={() => setRegionSheetOpen(false)}
+className="text-xs underline"
+style={{ color: "var(--muted)" }}
+>
+閉じる
+</button>
+</div>
+<p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
+選んだ地域の天気で、表紙と今日の助言が変わります。
+</p>
+<div className="mt-3 flex flex-wrap gap-2">
+{REGIONS.map((r) => {
+const selected = regionId === r.id;
+return (
+<button
+key={r.id}
+type="button"
+onClick={() => {
+setRegionId(r.id);
+setRegionSheetOpen(false);
+}}
+className="rounded-full border px-3.5 py-1.5 text-[13px]"
+style={
+selected
+? { borderColor: "var(--accent)", color: "var(--accent)", fontWeight: 700, background: "rgba(166,39,43,0.06)" }
+: { borderColor: "var(--line)", color: "var(--muted)" }
+}
+>
+{r.name}
+</button>
+);
+})}
+</div>
 </div>
 </div>
 )}
@@ -1769,26 +1892,9 @@ selected
 ))}
 <div className="mt-4">
 <p className="text-sm font-bold">天気の地域</p>
-<div className="mt-2 flex flex-wrap gap-2">
-{REGIONS.map((r) => {
-const selected = regionId === r.id;
-return (
-<button
-key={r.id}
-type="button"
-onClick={() => setRegionId(r.id)}
-className="rounded-full border px-3.5 py-1.5 text-[13px]"
-style={
-selected
-? { borderColor: "var(--accent)", color: "var(--accent)", fontWeight: 700, background: "rgba(166,39,43,0.06)" }
-: { borderColor: "var(--line)", color: "var(--muted)" }
-}
->
-{r.name}
-</button>
-);
-})}
-</div>
+<p className="mt-1 text-[11px]" style={{ color: "var(--muted)" }}>
+地域は表紙の天気ボックスを押して変えられます（いま：{currentRegion.name}）。
+</p>
 </div>
 <div className="mt-4">
 <p className="text-sm font-bold">天気ボックス</p>
